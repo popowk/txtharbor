@@ -100,3 +100,10 @@ https://example.com/a/b?q=1&v=2
 - 所有扩展设置位于 `data/entry_meta.php`，升级必须备份，不可删除。
 - 图片接入尚未实现，`inc/media_store.php` 只预留外部网盘或对象存储的后续接口；没有新增图片上传功能。
 - **Nginx 配置**：务必禁止直接公开 `/data/` 和 `/__temp__/` 目录；Apache 需要启用 `.htaccess` 读取。
+
+
+## v1.5.1 提交 500 修复
+
+若原网站可以修改 `data/file.php` 和 `data/index.txt`，但 PHP 用户无法在 `data/` 内创建 `entry_meta.php`、`.th-meta.lock`、`.th-write.lock` 等文件，v1.5.0 会在保存元数据时返回 HTTP 500。v1.5.1 会在写入前检测并提示，不会将未发布文本写入旧数据文件。
+
+首次启用 v1.5 的访问密码、有效期及编辑功能，必须确保 PHP 运行账户可以写入 `data/` 目录；不要将目录长期设置为任何用户都可写的 777。建议把目录属主/属组设置为网站 PHP 服务进程或使用受限 ACL。保留 `entry_meta.php` 和 `entry_meta_guard.php`，不要删除或公开这两个文件。

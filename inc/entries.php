@@ -4,43 +4,117 @@ require_once __DIR__.'/content.php';
 const TH_META_PREFIX = "<?php exit; ?>\n";
 function th_meta_path() { return dirname(__DIR__).'/data/entry_meta.php'; }
 function th_meta_guard_path() { return dirname(__DIR__).'/data/entry_meta_guard.php'; }
-function th_metadata_read() {
+/**
+ * File metadata is kept separate from the old byte-indexed data store.
+ * Read with a shared advisory lock to protect Windows/in-place fallbacks.
+ */
+function th_metadata_read($already_locked = false) {
     $path = th_meta_path();
-    if (!is_file($path)) {
-        if (is_file(th_meta_guard_path())) throw new RuntimeException('留言权限数据缺失；已停止访问，请管理员恢复 data/entry_meta.php');
-        return array();
+    $mutex = null;
+    if (!$already_locked && is_file(dirname($path).'/.th-meta.lock')) {
+        $mutex = @fopen(dirname($path).'/.th-meta.lock', 'rb');
+        if ($mutex && !@flock($mutex, LOCK_SH)) {
+            @fclose($mutex);
+            throw new RuntimeException('留言权限数据暂时无法锁定，请重试');
+        }
     }
-    $raw = @file_get_contents($path);
-    if (!is_string($raw) || strncmp($raw, TH_META_PREFIX, strlen(TH_META_PREFIX)) !== 0) {
-        throw new RuntimeException('留言权限数据无法读取，已停止访问');
+    try {
+        if (!is_file($path)) {
+            if (is_file(th_meta_guard_path())) throw new RuntimeException('留言权限数据缺失；已停止访问，请管理员恢复 data/entry_meta.php');
+            return array();
+        }
+        $raw = @file_get_contents($path);
+        if (!is_string($raw) || strncmp($raw, TH_META_PREFIX, strlen(TH_META_PREFIX)) !== 0) {
+            throw new RuntimeException('留言权限数据无法读取，已停止访问');
+        }
+        $data = json_decode(substr($raw, strlen(TH_META_PREFIX)), true);
+        if (!is_array($data) || !isset($data['entries']) || !is_array($data['entries'])) {
+            throw new RuntimeException('留言权限数据不完整，已停止访问');
+        }
+        return $data['entries'];
+    } finally {
+        if ($mutex) { @flock($mutex, LOCK_UN); @fclose($mutex); }
     }
-    $data = json_decode(substr($raw, strlen(TH_META_PREFIX)), true);
-    if (!is_array($data) || !isset($data['entries']) || !is_array($data['entries'])) {
-        throw new RuntimeException('留言权限数据不完整，已停止访问');
-    }
-    return $data['entries'];
 }
-/** Atomic and mutually exclusive sidecar writes, never transform legacy records. */
+/** Fail before touching the old record when new metadata cannot be stored. */
+function th_metadata_preflight() {
+    $dir = dirname(th_meta_path());
+    if (!is_dir($dir)) throw new RuntimeException('data 目录不存在');
+    $meta = th_meta_path();
+    $lock = $dir.'/.th-meta.lock';
+    // Directory creation is needed on the first write; existing writable files
+    // support hosts that prohibit directory changes while allowing data writes.
+    if (!is_writable($dir) && (!is_file($meta) || !is_writable($meta) || !is_file($lock) || !is_writable($lock))) {
+        throw new RuntimeException('data 目录无法创建留言权限文件；请给 PHP 运行账户 data 目录写入权限');
+    }
+    // A missing or malformed protected sidecar is never replaced silently.
+    th_metadata_read();
+}
+/** Rewrite with a lock and restore old bytes on a failed in-place fallback. */
+function th_meta_inplace_replace($path, $bytes) {
+    $fp = @fopen($path, 'c+b');
+    if (!$fp || !@flock($fp, LOCK_EX)) {
+        if ($fp) @fclose($fp);
+        return false;
+    }
+    try {
+        @rewind($fp);
+        $original = @stream_get_contents($fp);
+        if (!is_string($original)) return false;
+        @rewind($fp);
+        $length = strlen($bytes);
+        $offset = 0;
+        while ($offset < $length) {
+            $n = @fwrite($fp, substr($bytes, $offset));
+            if ($n === false || $n === 0) break;
+            $offset += $n;
+        }
+        $ok = $offset === $length && @ftruncate($fp, $length) && @fflush($fp);
+        if (!$ok) {
+            @rewind($fp);
+            @fwrite($fp, $original);
+            @ftruncate($fp, strlen($original));
+            @fflush($fp);
+        }
+        return $ok;
+    } finally {
+        @flock($fp, LOCK_UN);
+        @fclose($fp);
+    }
+}
+/** Atomic sidecar updates on POSIX; Windows/limited hosts use locked fallback. */
 function th_metadata_update($callback) {
     $dir = dirname(th_meta_path());
-    if (!is_dir($dir) || !is_writable($dir)) throw new RuntimeException('data 目录不可写，无法安全保存留言设置');
+    th_metadata_preflight();
     $lock = @fopen($dir.'/.th-meta.lock', 'c');
-    if (!$lock || !flock($lock, LOCK_EX)) throw new RuntimeException('留言设置文件锁定失败');
+    if (!$lock || !@flock($lock, LOCK_EX)) {
+        if ($lock) @fclose($lock);
+        throw new RuntimeException('无法获得留言设置文件锁，请检查 data 目录的 .th-meta.lock 权限');
+    }
     try {
-        $entries = th_metadata_read();
+        $entries = th_metadata_read(true);
         $new = $callback($entries);
         if (!is_array($new)) throw new RuntimeException('无效的留言元数据');
-        if (!is_file(th_meta_guard_path()) && @file_put_contents(th_meta_guard_path(), '<?php exit; ?>', LOCK_EX) === false)
-            throw new RuntimeException('留言设置安全标记创建失败');
         $json = json_encode(array('version'=>1, 'entries'=>$new), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_SLASHES);
         if ($json === false) throw new RuntimeException('留言设置序列化失败');
-        // The temp file is PHP too: accidental web retrieval cannot expose passwords or content.
-        $tmp = $dir.'/entry_meta_'.bin2hex(random_bytes(8)).'.php';
-        if (@file_put_contents($tmp, TH_META_PREFIX.$json, LOCK_EX) === false) throw new RuntimeException('留言设置写入失败');
-        @chmod($tmp, 0600);
-        if (!@rename($tmp, th_meta_path())) { @unlink($tmp); throw new RuntimeException('留言设置替换失败'); }
+        $bytes = TH_META_PREFIX.$json;
+        // Guard is durable and always written before metadata becomes public.
+        if (!is_file(th_meta_guard_path()) && @file_put_contents(th_meta_guard_path(), '<?php exit; ?>', LOCK_EX) === false) {
+            throw new RuntimeException('无法创建留言保护标记，请检查 data 目录权限');
+        }
+        if (is_writable($dir)) {
+            $tmp = $dir.'/entry_meta_'.bin2hex(random_bytes(8)).'.php';
+            if (@file_put_contents($tmp, $bytes, LOCK_EX) === false) throw new RuntimeException('写入权限文件失败，请检查 data 目录权限');
+            @chmod($tmp, 0600);
+            if (@rename($tmp, th_meta_path())) return $new;
+            // Windows or restricted hosts may not allow replacing a file via rename.
+            @unlink($tmp);
+        }
+        if (!is_file(th_meta_path()) || !is_writable(th_meta_path()) || !th_meta_inplace_replace(th_meta_path(), $bytes)) {
+            throw new RuntimeException('权限文件无法替换；请检查 data/entry_meta.php 的写入权限');
+        }
         return $new;
-    } finally { flock($lock, LOCK_UN); fclose($lock); }
+    } finally { @flock($lock, LOCK_UN); @fclose($lock); }
 }
 function th_entry_id($loc, $len, $row) {
     return substr(hash('sha256', (string)$loc."\0".(string)$len."\0".(string)($row[0]??'')."\0".(string)($row[2]??'')), 0, 24);

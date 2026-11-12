@@ -8,6 +8,30 @@
 * 声明：仅供代码爱好者学习交流，禁用于商业目的，请保留此版权信息
 */
 
+// JSON posts must not be polluted by PHP warnings, template output, or fatal HTML.
+// If an unexpected fatal happens after data has been written, do not claim that
+// the post was definitely rejected: the browser must avoid an automatic retry.
+$th_json_post = isset($_POST['act'], $_POST['ajax']) &&
+    $_POST['act'] === 'write' && $_POST['ajax'] === '1';
+$GLOBALS['th_json_answer_sent'] = false;
+if ($th_json_post) {
+    ob_start();
+    register_shutdown_function(function () {
+        if (!empty($GLOBALS['th_json_answer_sent'])) return;
+        $err = error_get_last();
+        if (!$err || !in_array($err['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR), true)) return;
+        $ref = substr(hash('sha256', $err['file'].':'.$err['line'].':'.microtime(true)), 0, 10);
+        error_log('TxtHarbor publish failed ['.$ref.'] '.$err['message'].' at '.$err['file'].':'.$err['line']);
+        if (ob_get_level() > 0) @ob_end_clean();
+        if (headers_sent()) return;
+        http_response_code(500);
+        header('Content-Type: application/json; charset=UTF-8');
+        header('Cache-Control: no-store, private');
+        echo json_encode(array('ok'=>false,
+          'message'=>'服务器运行错误（编号 '.$ref.'）。提交状态未确认，请先查看留言列表，避免重复发布。'),
+          JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    });
+}
 header("content-type: text/html; charset=UTF-8");
 require_once('config.php');
 require_once('inc/entries.php');
@@ -21,6 +45,8 @@ $ajax_write = isset($_POST['act'], $_POST['ajax']) &&
 function write_finish($ok, $message, $url = '', $status = 400) {
     global $ajax_write;
     if ($ajax_write) {
+        $GLOBALS['th_json_answer_sent'] = true;
+        if (ob_get_level() > 0) @ob_end_clean();
         http_response_code($ok ? 200 : $status);
         header('Content-Type: application/json; charset=UTF-8');
         header('Cache-Control: no-store, private');
@@ -432,6 +458,14 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
     $password_digest = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : '';
     if ($password !== '' && (!is_string($password_digest) || $password_digest === ''))
         write_finish(false,'服务器无法安全生成密码哈希，留言未发布','',500);
+    // Preflight the new metadata store BEFORE touching legacy message bytes.
+    // Older sites may allow editing existing data files but forbid creating
+    // entry_meta.php or lock files in the data/ directory.
+    try {
+        th_metadata_preflight();
+    } catch (Throwable $error) {
+        write_finish(false, '无法发布：'.$error->getMessage(), '', 503);
+    }
     // A global advisory lock also serializes new writes that allocate old free slots.
     $write_lock = @fopen('data/.th-write.lock', 'c');
     if (!$write_lock || !@flock($write_lock, LOCK_EX)) write_finish(false,'写入锁定失败，请重试','',503);
@@ -464,7 +498,7 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
             return $all;
         });
     } catch (Throwable $error) {
-        write_finish(false, '留言未发布：权限设置保存失败（'.$error->getMessage().'）', '', 500);
+        write_finish(false, '留言未发布：权限设置保存失败（'.$error->getMessage().'）', '', 503);
     }
 
 	//处理索引文件
@@ -472,8 +506,10 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
         write_finish(false, '无法保存留言，服务器数据库目录可能没有写权限', '', 500);
 	}
 	
-	//优化空闲库
-	comb_space();
+    // The index append is the durable commit. Compaction is best effort: an
+    // exception here must not turn a successful post into a misleading 500.
+    try { comb_space(); }
+    catch (Throwable $error) { error_log('TxtHarbor optional free-space maintenance failed: '.$error->getMessage()); }
     @flock($write_lock, LOCK_UN); @fclose($write_lock);
 
     if ($track_daily) {

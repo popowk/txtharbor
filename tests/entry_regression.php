@@ -32,6 +32,22 @@ $other=th_md_render('[Click](javascript:alert(1))');ok(strpos($other,'href=')===
 th_metadata_update(function($all)use($id){$all[$id]=array('subject'=>'Edited title','content'=>'Edited **markdown**','pinned'=>true,
     'expires_at'=>time()+3600,'password_hash'=>password_hash('secret-abc123',PASSWORD_DEFAULT),'media'=>array());return $all;});
 $updated=th_entries_scan();ok($updated[0]['id']===$id && $updated[0]['subject']==='Edited title' && $updated[0]['pinned'],'Edit and pin preserve ID');
+// Some hosts allow writes to existing files but disallow creating/replacing
+// files in data/. This fallback must retain the sidecar's complete contents.
+$metadata_bytes = file_get_contents(th_meta_path());
+ok(th_meta_inplace_replace(th_meta_path(), $metadata_bytes) &&
+   file_get_contents(th_meta_path()) === $metadata_bytes,
+   'Locked in-place metadata fallback preserves file bytes');
+$old_mode = fileperms($base.'/data') & 0777;
+@chmod($base.'/data', 0555);
+if (!is_writable($base.'/data')) {
+    th_metadata_update(function($all)use($id){$all[$id]['edited_at']=77;return $all;});
+    ok((int)(th_metadata_read()[$id]['edited_at']??0)===77,
+       'Update existing sidecar when directory disallows new files');
+} else {
+    echo "SKIP: Directory permission fallback test requires a non-root runtime\n";
+}
+@chmod($base.'/data', $old_mode);
 ok(!th_entry_public_content($updated[0]),'Password blocks copied/rendered raw content');
 ok(strpos(th_entry_body_html($updated[0]),'Edited **markdown**')===false,'Password blocks Markdown source in HTML');
 th_metadata_update(function($all)use($id){$all[$id]['expires_at']=time()-1;return $all;});
