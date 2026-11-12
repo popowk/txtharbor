@@ -11,6 +11,7 @@
 header("content-type: text/html; charset=UTF-8");
 require_once('config.php');
 require_once 'inc/content.php';
+require_once 'inc/admin_login.php';
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
 
@@ -29,16 +30,9 @@ $text_admin_run_login =
 $text_admin_run_logout = '';
 
 if (confirm_power()) {
-	$text_admin_run_logout = '<label><a href="run.php?act=logout" onclick="main.addSubmitSafe();" target="lastFrame">注销</a></label> ';
+	$text_admin_run_logout = '<a href="run.php?act=logout">退出管理员</a> ';
 } else {
-	$text_admin_run_login = '<div id="submit_safe"><div id="submit_safe_in"></div>
-                   <table width="100%" height="100%" id="submit_safe_in2"><tr><td><div id="submit_safe_in22">
-  <form action="run.php" method="post" target="lastFrame">
-    <input type="hidden" name="act" id="act" value="login" />
-    管理密钥：<input type="text" name="password" id="password" value="" /> <button type="submit" class="send2">提交</button><br />
-    <label><input type="checkbox" class="checkbox" name="save_cookie" value="1" checked="checked" /> 一直保持登陆</label> <a href="./">&lt;&lt;返回</a>
-  </form>
-				   </div></td></tr></table></div>';
+	$text_admin_run_login = th_admin_login_html('admin');
 }
 
 
@@ -118,7 +112,7 @@ table#set td.right {
           <td width="150" class="right">管理密码：</td>
           <td>
             <label>
-              <input type="text" name="password" value="" size="20" />
+              <input type="password" name="password" value="" size="20" autocomplete="new-password" placeholder="留空则不修改管理密码" />
               <span style="color:#999999;">（留空默认原密码，否则更新原密码）</span></label>
           </td>
         </tr>

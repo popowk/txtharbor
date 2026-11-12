@@ -35,14 +35,16 @@ if ($th_json_post) {
 header("content-type: text/html; charset=UTF-8");
 require_once('config.php');
 require_once('inc/entries.php');
+require_once('inc/admin_auth.php');
 $web = text_v2_config_utf8($web);
+th_admin_handle_request($web);
 header('Content-Type: text/html; charset=UTF-8');
 
 // The editor uses an explicit JSON acknowledgement, while the original
 // iframe-based administrative actions continue to use the legacy response.
 $ajax_write = isset($_POST['act'], $_POST['ajax']) &&
     $_POST['act'] === 'write' && $_POST['ajax'] === '1';
-function write_finish($ok, $message, $url = '', $status = 400) {
+function write_finish($ok, $message, $url = '', $status = 400, $share_url = '') {
     global $ajax_write;
     if ($ajax_write) {
         $GLOBALS['th_json_answer_sent'] = true;
@@ -51,7 +53,7 @@ function write_finish($ok, $message, $url = '', $status = 400) {
         header('Content-Type: application/json; charset=UTF-8');
         header('Cache-Control: no-store, private');
         echo json_encode(array('ok' => (bool)$ok, 'message' => $message,
-            'url' => $ok ? $url : ''), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+            'url' => $ok ? $url : '', 'share_url' => $ok ? $share_url : ''), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         exit;
     }
     $js_message = json_encode($message, JSON_UNESCAPED_UNICODE |
@@ -451,8 +453,8 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
         $expiration=$date->getTimestamp();
     } elseif ($expiry !== 'never') write_finish(false,'有效期参数不正确','',422);
     $password = isset($_POST['access_password']) && is_string($_POST['access_password']) ? $_POST['access_password'] : '';
-    if ($password !== '' && (strlen($password)<8 || strlen($password)>128))
-        write_finish(false, '访问密码至少 8 位，不超过 128 字节', '', 422);
+    if ($password !== '' && (!text_v2_valid_utf8($password) || text_v2_length($password)<4 || strlen($password)>128))
+        write_finish(false, '访问密码至少 4 个字符，不超过 128 字节', '', 422);
     if (isset($_POST['access_password']) && !is_string($_POST['access_password']))
         write_finish(false,'访问密码格式不正确','',422);
     $password_digest = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : '';
@@ -530,7 +532,7 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
     // A JSON response proves the index append succeeded before redirect.
     // The client navigates to the exact record's unique index key.
     $posted_url = './?focus='.$loc.'-'.$strlen;
-    write_finish(true, '发布成功，正在打开刚刚提交的留言…', $posted_url);
+    write_finish(true, '发布成功，正在打开刚刚提交的留言…', $posted_url, 200, 'entry.php?id='.$new_id);
 
 
 
@@ -864,61 +866,7 @@ elseif (false) :
 
 
 
-//登录
-elseif ($_POST['act'] == 'login') :
-	if (ADMIN_POWER) {
-		die('<script> main.addSubmitSafe_(\'i\', \'你已经登录过了！\'); </script></body></html>');
-	}
-	if ($_POST['password'] == '') {
-		die('<script> main.addSubmitSafe_(\'i\', \'密码不能空！\', function(){htmlbody.document.getElementById(\'submit_safe_in22\').innerHTML=\'<form action="run.php" method="post" target="lastFrame"><input type="hidden" name="act" id="act" value="login" />管理密钥：<input type="text" name="password" id="password" value="" /> <button type="submit" class="send2">提交</button><br /><label><input type="checkbox" class="checkbox" name="save_cookie" value="1" checked="checked" /> 一直保持登陆</label> <a href="./">&lt;&lt;返回</a></form>\';}); </script>
-		密码不能空！</body></html>');
-	}
-	$key = time().s_rand(16);
-	
-	if (md162100($_POST['password']) != $web['password']) {
-		die('<script> main.addSubmitSafe_(\'i\', \'你输入的密码不符！\', function(){htmlbody.document.getElementById(\'submit_safe_in22\').innerHTML=\'<form action="run.php" method="post" target="lastFrame"><input type="hidden" name="act" id="act" value="login" />管理密钥：<input type="text" name="password" id="password" value="" /> <button type="submit" class="send2">提交</button><br /><label><input type="checkbox" class="checkbox" name="save_cookie" value="1" checked="checked" /> 一直保持登陆</label> <a href="./">&lt;&lt;返回</a></form>\';}); </script>
-		你输入的密码不符！</body></html>');
-	} else {
-		//用js设置cookie，因为前面已有输出（本程序采用cookie验证登录，当然最好使用session，并不复杂）
-		echo '
-		<script language="javascript" type="text/javascript">
-		<!--
-		var cookieEnabled = (typeof navigator.cookieEnabled != \'undefined\' && navigator.cookieEnabled) ? true : false;
-		if(cookieEnabled == false){
-			main.addSubmitSafe_(\'i\', \'您的浏览器未开通cookie，程序无法正常使用！\');
-		}
-		document.cookie=\'manage='.$key.'; expires=\'+(new Date(new Date().getTime()+('.($_POST['save_cookie'] == 1 ? '365' : '-1').'*24*60*60+'.abs($web['time_pos']).'*3600)*1000).toGMTString())+\';\';
-		-->
-		</script>';
-        file_put_contents('data/admin_key.php', '<?php die(); ?>'.$key.''); //登陆密钥记录
-
-		die('<script> main.addSubmitSafe_(\'ok\', \'登录成功！欢迎您\', \'htmlbody.location.reload();\'); </script>
-		<a href="./">登录成功！欢迎您</a></body></html>');
-	}
-
-
-
-
-//注销
-elseif ($_REQUEST['act'] == 'logout') :
-	//用js设置cookie，因为前面已有输出
-	echo '
-		<script language="javascript" type="text/javascript">
-		<!--
-		document.cookie="manage=;";
-		-->
-		</script>
-		<script> 
-		s = htmlbody.location.toString();
-		s = s.replace(/\&*admin_run=1/ig, "");
-		s = s.replace(/\&*p=1/ig, "");
-		s = s.replace(/\&+/g, "&");
-		s = s.replace(/\?+\&+/, "?");
-		s = s.replace(/\?+$/, "");
-		main.addSubmitSafe_(\'ok\', \'注销成功\', \'htmlbody.location.href="\'+s+\'";\'); </script>
-	<a href="./">注销成功</a></body></html>';
-	die();
-
+// Administrator authentication and logout are handled before HTML output.
 elseif ($_POST['act'] == 'set') :
 	if (!ADMIN_POWER) {
 		die('<script> main.addSubmitSafe_(\'i\', \'管理权限不足！\'); </script>

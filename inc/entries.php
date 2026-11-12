@@ -198,12 +198,23 @@ function th_access_csrf() {
 function th_access_csrf_valid($value) {return is_string($value) && hash_equals(th_access_csrf(), $value);}
 /** IP + entry aware attempt limit, avoids session-reset bypass. */
 function th_access_rate($id, $success = null) {
-    $dir=dirname(__DIR__).'/__temp__/password_attempts';
-    if (!is_dir($dir) && !@mkdir($dir, 0700, true)) return false;
+    // Prefer site temp; fall back to PHP's private temp area and then private data storage.
+    // Never mistake an unwritable counter directory for "too many attempts".
+    $root=dirname(__DIR__);
+    $directories=array(
+        $root.'/__temp__/password_attempts',
+        rtrim(sys_get_temp_dir(), '/\\').'/txtharbor-'.substr(hash('sha256',$root),0,20).'/password_attempts',
+        $root.'/data/.password_attempts');
     $addr=(string)($_SERVER['REMOTE_ADDR']??'unknown');
-    $name=hash('sha256', $id.'|'.$addr);
-    $file=$dir.'/'.$name.'.php';
-    $fp=@fopen($file,'c+'); if (!$fp || !flock($fp,LOCK_EX))return false;
+    $filename=hash('sha256',$id.'|'.$addr).'.php';
+    $fp=false;
+    foreach ($directories as $dir) {
+        if (!is_dir($dir) && !@mkdir($dir,0700,true) && !is_dir($dir)) continue;
+        $candidate=@fopen($dir.'/'.$filename,'c+');
+        if ($candidate && @flock($candidate, LOCK_EX)) { $fp=$candidate;break; }
+        if ($candidate) @fclose($candidate);
+    }
+    if (!$fp) throw new RuntimeException('密码尝试记录不可写，请检查 __temp__ 或 PHP 临时目录权限');
     try {
         rewind($fp); $raw=stream_get_contents($fp);
         $x=strncmp($raw,TH_META_PREFIX,strlen(TH_META_PREFIX))===0 ? json_decode(substr($raw,strlen(TH_META_PREFIX)),true):null;
@@ -211,8 +222,12 @@ function th_access_rate($id, $success = null) {
         if ($success === null) return $x['count'] < 6;
         $x['count'] = $success ? 0 : $x['count']+1;
         if ($success) $x['since']=time();
-        rewind($fp);ftruncate($fp,0);$ok=fwrite($fp,TH_META_PREFIX.json_encode($x))!==false;fflush($fp);return $ok;
-    } finally {flock($fp,LOCK_UN);fclose($fp);}
+        rewind($fp); ftruncate($fp,0);
+        $ok=fwrite($fp,TH_META_PREFIX.json_encode($x))!==false;
+        fflush($fp);
+        if (!$ok) throw new RuntimeException('密码尝试计数无法保存');
+        return true;
+    } finally { flock($fp,LOCK_UN); fclose($fp); }
 }
 /** Future-only external cloud object references, never expose private URLs before auth. */
 function th_media_descriptor($provider, $object_id, $name, $mime) {

@@ -34,7 +34,7 @@ main.maxContentWordCount = <?php echo WORD_SIZE; ?>;
     <a href="./" id="logo" aria-label="返回留言列表"><span class="brand-symbol">T<span>_</span></span><span class="brand-name"><?php echo htmlspecialchars($web['sitename'], ENT_QUOTES, 'UTF-8'); ?></span></a>
     <nav class="site-nav" aria-label="主要导航">
       <a href="./">浏览内容</a><a class="active" href="write.php">新建留言</a>
-      <?php if (confirm_power()) { ?><a href="run.php?act=logout" target="lastFrame" onclick="main.addSubmitSafe();">退出管理</a><?php } ?>
+      <?php if (confirm_power()) { ?><a href="run.php?act=logout">退出管理员</a><?php } ?>
     </nav><div class="theme-control">
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="点击切换主题" title="点击切换主题"><span class="theme-icon" aria-hidden="true">◐</span><span id="theme-label">自动</span></button><button type="button" class="theme-menu-toggle" id="theme-menu-toggle" aria-label="选择主题模式" aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu" title="选择自动、浅色或深色模式"><span class="theme-chevron" aria-hidden="true">⌄</span></button>
       <div class="theme-menu" id="theme-menu" role="group" aria-label="显示主题" hidden>
@@ -83,7 +83,7 @@ main.maxContentWordCount = <?php echo WORD_SIZE; ?>;
           <div class="field-title"><label>分享设置</label><small>默认永久公开，密码留空表示不加密</small></div>
           <div class="entry-options-grid"><label>有效期
             <select name="expiry" id="expiry-option"><option value="never">永久有效</option><option value="1d">1 天</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="custom">自定义时间</option></select>
-          </label><label>访问密码（可选）<input type="password" name="access_password" class="modern-input" autocomplete="new-password" placeholder="至少 8 位，留空为公开"></label></div>
+          </label><label>访问密码（可选）<div class="password-tools"><input id="publish-access-password" type="password" name="access_password" class="modern-input" autocomplete="new-password" minlength="4" placeholder="至少 4 位，留空表示公开"><button type="button" class="tool-button" onclick="main.generateAccessPassword('publish-access-password',this)">随机生成</button></div><small>默认生成 4 位小写字母和数字，更长的密码更安全</small></label></div>
           <label id="expiry-custom-wrap" hidden>到期时间（北京时间）<input type="datetime-local" name="expiry_custom" class="modern-input"></label>
         </div>
         <div class="editor-footer"><span class="privacy-hint">保留换行、空格及特殊字符</span><button class="send2 primary-button" type="submit">发布留言 <span aria-hidden="true">↗</span></button></div>

@@ -216,3 +216,26 @@
   .app-page #order.archive-sort select { padding: 7px; min-height: 34px; font-size: 11px; }
   .app-page #page.archive-pager { gap: 12px; }
 }
+
+/* v1.5.2 administrator credential dialog: clear hierarchy and native form submission. */
+#submit_safe.admin-login-overlay #submit_safe_in {background:rgba(3,10,24,.76);backdrop-filter:blur(8px)}
+#submit_safe.admin-login-overlay #submit_safe_in2{padding:18px;box-sizing:border-box}
+#submit_safe.admin-login-overlay #submit_safe_in22.admin-login-card{box-sizing:border-box;max-width:440px;width:min(440px,calc(100vw - 40px));padding:30px 32px 32px;text-align:left;border-radius:18px;border:1px solid var(--line-strong);box-shadow:0 24px 70px rgba(0,0,0,.27);background:var(--panel);color:var(--ink)}
+.admin-login-icon{display:grid;place-items:center;width:45px;height:45px;border-radius:14px;color:var(--cyan-bright);background:var(--panel-2);border:1px solid var(--line-strong);font-size:22px;margin-bottom:18px}
+#submit_safe_in22 .admin-login-card h2,.admin-login-card h2{font-size:22px;line-height:1.35;margin:0 0 6px;font-weight:730;color:var(--ink)}
+.admin-login-help{font-size:13px;line-height:1.6;color:var(--muted);margin:0 0 23px}
+.admin-login-label{display:block;text-align:left;color:var(--ink);font-size:13px;font-weight:650;margin-bottom:9px}
+#submit_safe_in22 input.admin-login-password{box-sizing:border-box;display:block;width:100%;height:47px;border:1px solid var(--line-strong);border-radius:11px;padding:0 14px;background:var(--panel-2);color:var(--ink);font:16px system-ui,sans-serif;letter-spacing:.15em;outline:none}
+#submit_safe_in22 input.admin-login-password:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(64,198,219,.12)}
+.admin-login-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:15px 0 23px;font-size:13px}
+.admin-remember{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--muted);white-space:nowrap}
+#submit_safe_in22 .admin-remember input{width:16px;height:16px;accent-color:var(--cyan);margin:0}
+.admin-cancel{font-size:13px;color:var(--muted)!important;text-decoration:none}
+.admin-cancel:hover{color:var(--cyan-bright)!important}
+#submit_safe_in22 button.admin-login-submit{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:46px;border:0;border-radius:11px;background:linear-gradient(125deg,#16a7c1,#1175a2);color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#submit_safe_in22 button.admin-login-submit:hover{filter:brightness(1.09)}
+.admin-login-error{padding:10px 12px;border-radius:9px;border:1px solid #c96a81;color:#f6adb7;background:rgba(180,50,79,.12);font-size:13px;margin:0 0 15px}
+:root[data-theme="light"] #submit_safe.admin-login-overlay #submit_safe_in22.admin-login-card{background:#fff;color:#16304a;border-color:#dbe5f0}
+:root[data-theme="light"] .admin-login-error{background:#fff2f3;color:#a52944;border-color:#eac2c9}
+:root[data-theme="light"] #submit_safe_in22 input.admin-login-password{background:#f8fafc;color:#1d3650;border-color:#d5e1ed}
+@media(max-width:500px){#submit_safe.admin-login-overlay #submit_safe_in22.admin-login-card{padding:24px 20px}}

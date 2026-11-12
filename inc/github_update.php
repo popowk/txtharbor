@@ -196,7 +196,7 @@ function th_update_install($settings, &$error) {
     $zip = new ZipArchive();
     if ($zip->open($temp) !== true) { @unlink($temp); $error = '升级包不是有效 ZIP。'; return false; }
     $allow = array_fill_keys(array('0.php', 'admin.php', 'index.php', 'run.php', 'write.php', 'update.php', 'VERSION',
-        'inc/main.js', 'inc/theme.js', 'inc/style.css', 'inc/modern.css', 'inc/theme.css', 'inc/content.php', 'inc/imcode.html', 'inc/github_update.php', 'inc/entries.php', 'inc/entry_view.php',
+        'inc/main.js', 'inc/theme.js', 'inc/style.css', 'inc/modern.css', 'inc/theme.css', 'inc/content.php', 'inc/imcode.html', 'inc/github_update.php', 'inc/admin_auth.php', 'inc/admin_login.php', 'inc/entries.php', 'inc/entry_view.php',
         'inc/markdown.php', 'inc/entries.css', 'inc/media_store.php', 'entry.php', 'data/.htaccess'), true);
     $files = array();
     for ($i = 0; $i < $zip->numFiles; $i++) {

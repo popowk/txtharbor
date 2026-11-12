@@ -14,6 +14,7 @@ header("content-type:text/html; charset=UTF-8");
 
 require_once('config.php');
 require_once('inc/entry_view.php');
+require_once('inc/admin_login.php');
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: no-store, private');
@@ -326,16 +327,7 @@ if (isset($_GET['admin_run']) && $_GET['admin_run'] == 1) {
 		$text_admin_exit .= '<label><a href="'.pp(SELF_SCRIPT.preg_replace('/\&*admin_run=1/i', '', '?p='.$p.$pp)).'">退出</a></label>';
 
 	} else {
-		$text_admin_run_login = '<div id="submit_safe"><div id="submit_safe_in"></div>
-                   <table width="100%" height="100%" id="submit_safe_in2"><tr><td><div id="submit_safe_in22">
-  <form action="run.php" method="post" name="mainform" id="mainform" target="lastFrame">
-    <input type="hidden" name="act" id="act" value="login" />
-    <div>管理密钥：</div>
-    <div><input type="text" name="password" id="password" style="width:150px;" value="" /> <button type="submit" class="send2">提交</button></div>
-    <div><label><input type="checkbox" class="checkbox" name="save_cookie" value="1" checked="checked" /> 一直保持登陆</label> <a href="./">&lt;&lt;返回</a></div>
-    <div></div>
-  </form>
-				   </div></td></tr></table></div>';
+		$text_admin_run_login = th_admin_login_html('index');
 
 	}
 } else {
@@ -422,7 +414,7 @@ function thDeleteOne(id) {
 <header id="top">
   <div class="body top-inner">
     <a href="./" id="logo"><span class="brand-symbol">T<span>_</span></span><span class="brand-name"><?php echo text_v2_html($web['sitename']); ?></span></a>
-    <nav class="site-nav" aria-label="主要导航"><a href="./" class="active">浏览内容</a><a href="write.php">新建留言</a><?php echo ADMIN_POWER ? '<a href="index.php?admin_run=1">留言管理</a><a href="update.php">版本更新</a>'.$text_admin_exit.'<a href="run.php?act=logout" onclick="main.addSubmitSafe();" target="lastFrame">退出管理</a>' : ''; ?></nav><div class="theme-control">
+    <nav class="site-nav" aria-label="主要导航"><a href="./" class="active">浏览内容</a><a href="write.php">新建留言</a><?php echo ADMIN_POWER ? '<a href="index.php?admin_run=1">留言管理</a><a href="update.php">版本更新</a>'.$text_admin_exit.'<a href="run.php?act=logout">退出管理员</a>' : ''; ?></nav><div class="theme-control">
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="点击切换主题" title="点击切换主题"><span class="theme-icon" aria-hidden="true">◐</span><span id="theme-label">自动</span></button><button type="button" class="theme-menu-toggle" id="theme-menu-toggle" aria-label="选择主题模式" aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu" title="选择自动、浅色或深色模式"><span class="theme-chevron" aria-hidden="true">⌄</span></button>
       <div class="theme-menu" id="theme-menu" role="group" aria-label="显示主题" hidden>
         <button type="button" data-theme-choice="auto">◐ <span>自动</span></button>

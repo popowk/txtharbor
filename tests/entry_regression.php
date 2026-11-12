@@ -48,6 +48,12 @@ if (!is_writable($base.'/data')) {
     echo "SKIP: Directory permission fallback test requires a non-root runtime\n";
 }
 @chmod($base.'/data', $old_mode);
+// When the site temp directory cannot be created, use an isolated PHP temp directory.
+@rename($base.'/__temp__',$base.'/__temp__.bak');
+file_put_contents($base.'/__temp__','not a directory');
+ok(th_access_rate($id) === true && th_access_rate($id, true) === true,
+   'Password validation counters fall back when site temp directory is unavailable');
+@unlink($base.'/__temp__');@rename($base.'/__temp__.bak',$base.'/__temp__');
 ok(!th_entry_public_content($updated[0]),'Password blocks copied/rendered raw content');
 ok(strpos(th_entry_body_html($updated[0]),'Edited **markdown**')===false,'Password blocks Markdown source in HTML');
 th_metadata_update(function($all)use($id){$all[$id]['expires_at']=time()-1;return $all;});

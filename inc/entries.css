@@ -48,3 +48,11 @@
 @media(max-width:670px){.entry-publish-options .entry-options-grid{grid-template-columns:1fr}.entry-settings{padding:17px}.entry-detail .texts{padding:18px}.entry-pin{order:0}.entry-buttons{width:100%}}
 
 .entry-pin-form{display:flex;justify-content:flex-end;margin-bottom:13px}.entry-pin-form button{cursor:pointer}
+
+/* v1.5.2 compact password generation and sharing actions. */
+.password-tools{display:flex;align-items:stretch;gap:9px;min-width:0}
+.password-tools .modern-input{flex:1;min-width:0}
+.app-page .password-tools .tool-button{flex:none;white-space:nowrap;padding:8px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--panel-2);color:var(--cyan-bright);cursor:pointer;font-weight:650}
+.app-page .password-tools .tool-button:hover{border-color:var(--cyan)}
+.entry-publish-options label small{color:var(--muted);font-weight:400;line-height:1.4}
+@media(max-width:460px){.password-tools{flex-wrap:wrap}.password-tools .modern-input{flex-basis:100%}}

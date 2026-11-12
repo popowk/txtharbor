@@ -195,6 +195,16 @@ main = {
                     throw new Error('服务端已确认保存，但未返回有效跳转位置。请到留言列表查看，避免重复发布。');
                 }
                 that.showSubmitFeedback('发布成功，正在定位刚提交的留言…', false);
+                var passwordField = form.querySelector('input[name="access_password"]');
+                var password = passwordField ? passwordField.value : '';
+                if (password && result.share_url && /^entry\.php\?id=[a-f0-9]{24}$/.test(result.share_url)) {
+                    var link = new URL(result.share_url, window.location.href);
+                    link.hash = 'key=' + encodeURIComponent(password);
+                    // Copy the password-bearing link only after the server confirms the save.
+                    return that.copyShareText(link.href).then(function() {
+                        window.location.replace(result.url);
+                    });
+                }
                 window.location.replace(result.url);
             });
         }).catch(function(err) {
@@ -236,6 +246,100 @@ main = {
             c.focus();
             this.notify('无法自动读取剪贴板，请按 Ctrl+V / ⌘V 粘贴', true);
         }
+    },
+
+    copyShareText: function(value) {
+        var that = this;
+        var manual = function () {
+            var t = document.createElement('textarea');
+            t.value = value;
+            t.setAttribute('readonly', 'readonly');
+            t.style.cssText = 'position:fixed;left:-200vw;top:0;opacity:0';
+            document.body.appendChild(t); t.select();
+            var success = false;
+            try { success = document.execCommand('copy'); } catch (_) { }
+            t.remove();
+            if (!success) window.prompt('请手动复制分享链接（含访问密码）', value);
+            else that.notify('分享链接已复制');
+            return success;
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+            return navigator.clipboard.writeText(value).then(function () {
+                that.notify('分享链接已复制');return true;
+            }, function () { return manual(); });
+        }
+        return Promise.resolve(manual());
+    },
+
+    shareEntry: function(button) {
+        var url = button.getAttribute('data-share-url');
+        if (!url) return;
+        var absolute = new URL(url, window.location.href);
+        var that = this;
+        if (button.getAttribute('data-share-protected') !== '1') {
+            this.copyShareText(absolute.href); return;
+        }
+        var password = window.prompt('请输入这条留言的访问密码，用于生成可自动填入密码的分享链接：');
+        if (password === null || password === '') return;
+        var form = new FormData();
+        form.set('action','share_verify');
+        form.set('csrf',button.getAttribute('data-share-csrf') || '');
+        form.set('password',password);
+        button.disabled=true;
+        fetch(absolute.href, {method:'POST',credentials:'same-origin',body:form,headers:{'Accept':'application/json'}})
+          .then(function(r) {return r.json().then(function(data) {
+              if (!r.ok || !data.ok) throw new Error(data.message || '访问密码验证失败');
+              absolute.hash = 'key=' + encodeURIComponent(password);
+              return that.copyShareText(absolute.href);
+          });})
+          .catch(function(e) {that.notify(e.message || '无法生成分享链接', true);})
+          .finally(function(){button.disabled=false;});
+    },
+
+    generateAccessPassword: function(id, button) {
+        var input=document.getElementById(id);
+        if (!input) return;
+        if (!window.crypto || !window.crypto.getRandomValues) {
+            this.notify('浏览器不支持安全随机数，请手动设置密码', true); return;
+        }
+        var chars='abcdefghijklmnopqrstuvwxyz0123456789';
+        var password='';
+        // Four characters containing both a lowercase letter and a digit.
+        for (var i=0;i<50;i++) {
+            var bits=new Uint32Array(4);
+            window.crypto.getRandomValues(bits);
+            password=Array.from(bits, function(v){return chars[v%chars.length];}).join('');
+            if (/[a-z]/.test(password) && /[0-9]/.test(password)) break;
+        }
+        input.value=password;
+        input.type='text';
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+        var selector=document.querySelector('select[name="password_mode"]');
+        if (selector && id==='entry-new-password') selector.value='set';
+        input.focus();input.select();
+        this.notify('已生成 4 位密码，请妥善保存；更长密码更安全');
+    },
+
+    saveEntrySettings: function(event, form) {
+        if (!window.fetch || !window.FormData) return true;
+        if (event) event.preventDefault();
+        var data=new FormData(form),that=this;
+        data.set('ajax','1');
+        var button=form.querySelector('button[type="submit"]');
+        if (button) button.disabled=true;
+        fetch(form.action,{method:'POST',body:data,credentials:'same-origin',headers:{'Accept':'application/json'}})
+          .then(function(response){return response.json().then(function(result){
+             if (!response.ok || !result.ok) throw new Error(result.message || '保存失败');
+             var password=(data.get('password_mode')==='set' ? data.get('new_password') : '');
+             if (password && result.share_url) {
+                var url=new URL(result.share_url,window.location.href);
+                url.hash='key='+encodeURIComponent(password);
+                return that.copyShareText(url.href).then(function(){window.location.replace(result.url);});
+             }
+             window.location.replace(result.url);
+          });})
+          .catch(function(e){that.notify(e.message || '保存失败，请重试',true);if(button)button.disabled=false;});
+        return false;
     },
 
     copyEntry: async function(id, button) {
