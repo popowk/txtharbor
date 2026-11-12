@@ -37,7 +37,7 @@ function write_finish($ok, $message, $url = '', $status = 400) {
     $js_url = json_encode($url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS |
         JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
     die('<script>main.addSubmitSafe_("ok", '.$js_message.', function () {' .
-        'htmlbody.location.replace('.$js_url.');}, 650);</script>' .
+        'htmlbody.location.replace('.$js_url.');}, 80);</script>' .
         '<a href="'.htmlspecialchars($url, ENT_QUOTES, 'UTF-8').'">'.
         htmlspecialchars($message, ENT_QUOTES, 'UTF-8').'</a></body></html>');
 }
@@ -615,7 +615,7 @@ elseif ($_POST['act'] == 'del') :
 		file_put_contents('data/space.txt', '', LOCK_EX);
 	}
 	
-	die('<script> main.addSubmitSafe_(\'ok\', \'删除完成\', \'htmlbody.location.reload();\'); </script>
+	die('<script> main.addSubmitSafe_(\'ok\', \'删除完成\', \'htmlbody.location.reload();\', 80); </script>
 	<a href="./">删除完成</a></body></html>');
 
 

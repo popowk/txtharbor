@@ -195,7 +195,7 @@ main = {
                     throw new Error('服务端已确认保存，但未返回有效跳转位置。请到留言列表查看，避免重复发布。');
                 }
                 that.showSubmitFeedback('发布成功，正在定位刚提交的留言…', false);
-                window.setTimeout(function(){ window.location.assign(result.url); }, 500);
+                window.location.replace(result.url);
             });
         }).catch(function(err) {
             that.showSubmitFeedback(err && err.message ? err.message : '网络异常，无法确认是否已提交，请先查看留言列表，避免重复发布。', true);

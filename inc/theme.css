@@ -156,3 +156,63 @@
 /* Ensure the light-mode theme controls really use the light palette. */
 :root[data-theme="light"] .app-page .theme-toggle, :root[data-theme="light"] .app-page .theme-menu-toggle { background: #ffffff; color: #35536d; border-color: #d3e0eb; }
 :root[data-theme="light"] .app-page .theme-toggle:hover, :root[data-theme="light"] .app-page .theme-menu-toggle:hover { background: #e8f5fb; border-color: #78c2d6; color: #086b8c; }
+
+
+/* v1.4.2: unified theme control, inline archive sorting, compact pager. */
+#top .theme-control {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 3px; border: 1px solid var(--line-strong); border-radius: 12px;
+  background: var(--panel); box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.app-page #top .theme-control .theme-toggle,
+.app-page #top .theme-control .theme-menu-toggle {
+  border: 0; border-radius: 8px; background: transparent; color: var(--ink);
+  height: 34px; min-height: 34px; transition: background .15s ease, color .15s ease;
+}
+.app-page #top .theme-control .theme-toggle { padding: 0 11px; gap: 7px; font-size: 12px; font-weight: 650; }
+.app-page #top .theme-control .theme-menu-toggle { min-width: 30px; padding: 0 7px; color: var(--muted); border-left: 1px solid var(--line); border-radius: 0 8px 8px 0; }
+.app-page #top .theme-control .theme-toggle:hover,
+.app-page #top .theme-control .theme-menu-toggle:hover,
+.app-page #top .theme-control .theme-menu-toggle[aria-expanded="true"] { background: var(--panel-2); color: var(--cyan-bright); }
+.app-page #top .theme-chevron { margin-left: 0; }
+:root[data-theme="light"] #top .theme-control { background: #fff; border-color: #d6e3ed; box-shadow: 0 2px 10px rgba(20, 57, 91, .045); }
+:root[data-theme="light"] .app-page #top .theme-control .theme-toggle,
+:root[data-theme="light"] .app-page #top .theme-control .theme-menu-toggle { background: transparent; color: #35536d; border-color: #e1e9f1; }
+:root[data-theme="light"] .app-page #top .theme-control .theme-toggle:hover,
+:root[data-theme="light"] .app-page #top .theme-control .theme-menu-toggle:hover,
+:root[data-theme="light"] .app-page #top .theme-control .theme-menu-toggle[aria-expanded="true"] { background: #edf7fb; color: #087b99; }
+.archive-heading { align-items: center; gap: 16px; padding-bottom: 16px; margin-bottom: 22px; }
+.archive-heading h2 { margin: 0; display: flex; align-items: center; gap: 10px; }
+.archive-total { display: inline-flex; align-items: center; justify-content: center; margin-left: 0; min-width: 30px; height: 26px; padding: 0 9px; border-radius: 9px; }
+.app-page #order.archive-sort { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 0 auto; padding: 0; flex: none; }
+.archive-sort .sort-caption { font-size: 12px; white-space: nowrap; }
+.app-page #order.archive-sort select { border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink); border-radius: 10px; padding: 9px 11px; font-size: 12px; min-height: 38px; cursor: pointer; box-shadow: none; }
+.app-page #order.archive-sort select:focus-visible, .app-page #top .theme-control button:focus-visible,
+.archive-pager a:focus-visible, .archive-pager select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+:root[data-theme="light"] .app-page #order.archive-sort select { background: #fff; border-color: #d5e2eb; color: #38546c; }
+/* Only render pagination when there is actually a second page. */
+.app-page #page.archive-pager { display: flex; justify-content: center; align-items: center; gap: 18px; flex-wrap: wrap; margin: 25px 0 8px; padding: 0; color: var(--muted); }
+#page.archive-pager .page-links { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 5px; }
+#page.archive-pager .page-links > a,
+#page.archive-pager .page-current { display: inline-flex; justify-content: center; align-items: center; width: 34px; height: 34px; padding: 0; margin: 0; border-radius: 9px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink); text-decoration: none; font: 600 13px/1 sans-serif; }
+#page.archive-pager .page-links > a:hover { background: var(--panel-2); color: var(--cyan-bright); border-color: var(--cyan); }
+#page.archive-pager .page-current { color: #041827; background: var(--cyan); border-color: var(--cyan); }
+#page.archive-pager .page-ellipsis { padding: 0 3px; color: var(--muted); }
+#page.archive-pager .page-summary { color: var(--muted); font: 500 12px/1.5 sans-serif; }
+#page.archive-pager .page-size { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+#page.archive-pager .page-size select { padding: 7px 9px; background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 9px; font-size: 12px; }
+:root[data-theme="light"] #page.archive-pager .page-links > a,
+:root[data-theme="light"] #page.archive-pager .page-size select { color: #39546c; background: #fff; border-color: #d6e3ec; }
+:root[data-theme="light"] #page.archive-pager .page-current { color: #fff; background: #137da0; border-color: #137da0; }
+:root[data-theme="light"] #page.archive-pager .page-summary,
+:root[data-theme="light"] #page.archive-pager .page-ellipsis { color: #647b91; }
+:root[data-theme="light"] #page.archive-pager .page-links > a:hover { color: #087b99; background: #eff8fc; border-color: #9acddd; }
+@media (max-width: 480px) {
+  .archive-heading { gap: 8px; }
+  .archive-heading h2 { font-size: 17px; gap: 7px; }
+  .archive-total { min-width: 26px; height: 25px; padding: 0 7px; }
+  .app-page #order.archive-sort { gap: 6px; }
+  .archive-sort .sort-caption { font-size: 11px; }
+  .app-page #order.archive-sort select { padding: 7px; min-height: 34px; font-size: 11px; }
+  .app-page #page.archive-pager { gap: 12px; }
+}

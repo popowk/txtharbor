@@ -36,78 +36,53 @@ function get_page($n) {
 	}
 }
 
-//分页
+// 分页：仅在存在多页时显示，记录总数已在标题栏展示。
 function get_page_foot($totallists, $pagesize, $p) {
-	global $web, $arr_page, $pp;
-	$pagestep = 10;
-	$totalpages = 1;
-	$text = '
-<style type="text/css">
-/*页码*/
-#page { padding-bottom:15px; text-align:center; line-height:24px; color:#666666; clear:both; }
-#page a, #page b, #page span { height:24px; line-height:24px; display:inline-block !important; display:inline; zoom:1; vertical-align:middle; margin:1px; padding-left:7.5px; padding-right:7.5px; text-decoration:none; background-color:#F4F4F4; }
-#page .page { display:inline-block !important; display:inline; zoom:1; vertical-align:middle; background-color:#FFFFFF; border:1px #DDDDDD solid; padding:1px; border-radius:5px; -moz-border-radius:5px; -webkit-border-radius:5px; font-size:14px; }
-#page > .page b { color:#FF6600; background-color:#FFFFFF; }
-#page > .page b.totallists { color:#000000; background-color:#ECECEC; }
-#page > .page #pagego { padding:0; margin:1px; width:26px; height:22px; border:1px #CCCCCC inset; background:url(inc/images/enter.gif) 6px 6px no-repeat; display:inline-block !important; display:inline; zoom:1; vertical-align:middle; outline:none; }
-</style>
-';
-
-	$text .= '
-  <div id="page">';
-	if ($totallists > $pagesize) {
-		$text .= '
-    <div class="page">';
-		$offset = 4; //当前页前面显几页
-		$totalpages = @ceil($totallists / $pagesize);
-		if ($pagestep > $totalpages) {
-			$fr = 1;
-			$to = $totalpages;
-		} else {
-			$fr = $p - $offset;
-			$to = $fr + $pagestep - 1;
-			if ($fr < 1) {
-				$to = $p + 1 - $fr;
-				$fr = 1;
-				if ($to - $fr < $pagestep) {
-					$to = $pagestep;
-				}
-			} elseif($to > $totalpages) {
-				$fr = $totalpages - $pagestep + 1;
-				$to = $totalpages;
-			}
-		}
-
-		$text .= '<b class="totallists" title="总记录数">'.$totallists.'</b>';
-		$text .= ($p - $offset > 1 && $totalpages > $pagestep ? '<a target="_self" href="'.pp(SELF_SCRIPT.'?p=1'.$pp).'">1 …</a>': ''). ($p > 1 ? '<a target="_self" href="'.pp(SELF_SCRIPT.'?p='.($p - 1).$pp).'" title="前一页">&lt;&lt;</a>': '');
-		for ($i = $fr; $i <= $to; $i++) {
-			$text .= $i == $p ? '<b>'.$i.'</b>': '<a target="_self" href="'.pp(SELF_SCRIPT.'?p='.$i.$pp).'" title="第'.$i.'页">'.$i.'</a>';
-		}
-		$text .= ($p < $totalpages ? '<a target="_self" href="'.SELF_SCRIPT.'?p='.($p + 1).$pp.'" title="后一页">&gt;&gt;</a>': '').($to < $totalpages ? '<a target="_self" href="'.SELF_SCRIPT.'?p='.$totalpages.$pp.'" title="最后页">… '.$totalpages.'</a>': '');
-		$text .= ($totalpages > $pagestep ? '<input type="text" name="pagego" id="pagego" size="3" title="按回车直接跳页" onkeydown="if(event.keyCode==13&&!isNaN(this.value)&&this.value>=1&&this.value<='.$totalpages.'){window.location=main.pp(\''.SELF_SCRIPT.'?p=\'+this.value+\''.$pp.'\');}" />': '');
-		$text .= '</div>
-    <div class="page"> 以每页 ';
-		foreach($arr_page as $val) {
-			$text .= ''.($_GET['pn'] == $val ? '<b>'.$val.'</b>' : '<a href="'.pp(SELF_SCRIPT.'?p='.$p.(preg_replace('/\&pn=\d*/i', '', $pp)).'&pn='.$val).'" target="_self">'.$val.'</a>').'';
-			if ($val >= $totallists) break;
-		}
-		unset($GLOBALS['arr_page'], $val);
-		$text .= '条浏览</div>';
-	} else {
-		if ($totallists > 0) {
-			$text .= '
-    <div class="page"><b class="totallists" title="总记录数">'.$totallists.'</b> 共1页</div>';
-		}
-	}
-	$text .= '
-  </div>
-';
-	return $text;
+    global $arr_page, $pp;
+    $pagesize = max(1, (int)$pagesize);
+    $totalpages = (int)ceil($totallists / $pagesize);
+    if ($totalpages <= 1) return '';
+    $p = max(1, min((int)$p, $totalpages));
+    $page_url = function ($page) use ($pp) {
+        return htmlspecialchars(pp(SELF_SCRIPT.'?p='.(int)$page.$pp), ENT_QUOTES, 'UTF-8');
+    };
+    $text = '<nav id="page" class="archive-pager" aria-label="留言分页"><div class="page-links">';
+    if ($p > 1) $text .= '<a class="page-nav" href="'.$page_url($p - 1).'" aria-label="上一页">‹</a>';
+    $first = max(1, $p - 2);
+    $last = min($totalpages, $p + 2);
+    if ($first > 1) {
+        $text .= '<a href="'.$page_url(1).'">1</a>';
+        if ($first > 2) $text .= '<span class="page-ellipsis" aria-hidden="true">…</span>';
+    }
+    for ($i = $first; $i <= $last; $i++) {
+        $text .= $i === $p
+            ? '<span class="page-current" aria-current="page">'.$i.'</span>'
+            : '<a href="'.$page_url($i).'" aria-label="第'.$i.'页">'.$i.'</a>';
+    }
+    if ($last < $totalpages) {
+        if ($last < $totalpages - 1) $text .= '<span class="page-ellipsis" aria-hidden="true">…</span>';
+        $text .= '<a href="'.$page_url($totalpages).'">'.$totalpages.'</a>';
+    }
+    if ($p < $totalpages) $text .= '<a class="page-nav" href="'.$page_url($p + 1).'" aria-label="下一页">›</a>';
+    $text .= '</div><span class="page-summary">'.$p.' / '.$totalpages.' 页</span>';
+    if (is_array($arr_page) && count($arr_page) > 1) {
+        $pp_without_page_size = preg_replace('/&pn=\d*/i', '', $pp);
+        $text .= '<div class="page-size"><label for="page-size">每页</label><select id="page-size" aria-label="每页显示条数" onchange="location.href=this.value">';
+        foreach ($arr_page as $val) {
+            $val = (int)$val;
+            if ($val <= 0) continue;
+            $href = htmlspecialchars(pp(SELF_SCRIPT.'?p=1'.$pp_without_page_size.'&pn='.$val), ENT_QUOTES, 'UTF-8');
+            $selected = $pagesize === $val ? ' selected' : '';
+            $text .= '<option value="'.$href.'"'.$selected.'>'.$val.' 条</option>';
+        }
+        $text .= '</select></div>';
+    }
+    return $text.'</nav>';
 }
 
 //处理页码等参数
 function pp($s) {
-	$s = preg_replace('/\&*p=1/i', '', $s);
+	$s = preg_replace('/([?&])p=1(?=&|$)/i', '$1', $s);
 	$s = preg_replace('/\&+/', '&', $s);
 	$s = preg_replace('/\?+\&+/', '?', $s);
 	return preg_replace('/\?+$/', '', $s);
@@ -389,7 +364,7 @@ main.reply = function(id) {
 }
 
 main.pp = function(s) {
-	s = s.replace(/\&*p=1/ig, '');
+	s = s.replace(/([?&])p=1(?=&|$)/ig, '$1');
 	s = s.replace(/\&+/g, '&');
 	s = s.replace(/\?+\&+/, '?');
 	return s.replace(/\?+$/, '');
@@ -447,7 +422,24 @@ function thDeleteOne(id) {
     <div class="intro-flex"><div><h1>留言列表</h1></div><a class="primary-link" href="write.php">＋ 发布留言</a></div>
   </section>
   <?php if (ADMIN_POWER): ?><div class="body management-entry"><a href="index.php?admin_run=1" class="manage-link">留言管理 · 批量操作</a><a href="admin.php" class="manage-link">站点设置</a><a href="update.php" class="manage-link">版本更新</a></div><?php endif; ?>
-  <div class="body archive-heading"><div><h2>全部留言 <span class="archive-total"><?php echo (int)$n; ?></span></h2></div></div>
+  <?php
+  $current_order = isset($_GET['order']) && in_array((int)$_GET['order'], array(1, 2), true)
+      ? (int)$_GET['order'] : (int)$web['order'];
+  $sort_base_url = SELF_SCRIPT.'?p='.(int)$p.preg_replace('/&order=\d*/i', '', $pp);
+  ?>
+  <div class="body archive-heading">
+    <h2>全部留言 <span class="archive-total"><?php echo (int)$n; ?></span></h2>
+    <?php if ($n > 0): ?>
+    <div class="archive-sort" id="order">
+      <label class="sort-caption" for="archive-order">排序</label>
+      <select id="archive-order" aria-label="留言排序方式" data-base-url="<?php echo htmlspecialchars($sort_base_url, ENT_QUOTES, 'UTF-8'); ?>"
+          onchange="location.href=main.pp(this.getAttribute('data-base-url')+'&order='+this.value)">
+        <option value="1"<?php echo $current_order !== 2 ? ' selected' : ''; ?>>最新优先</option>
+        <option value="2"<?php echo $current_order === 2 ? ' selected' : ''; ?>>最早优先</option>
+      </select>
+    </div>
+    <?php endif; ?>
+  </div>
 
 <?php
 echo $text_admin_run_login;
@@ -467,13 +459,6 @@ if ($n > 0) {
 	$order = isset($_GET['order']) && in_array($_GET['order'], array(1, 2)) ? (int)$_GET['order'] : $web['order'];
 	
 	if (($fp = @fopen('data/index.txt', 'rb')) && ($fp2 = @fopen('data/file.php', 'rb'))) {
-		$text .= '<div class="body">
-  <div id="order">
-    <div class="body"><span class="sort-caption">排序方式</span><select name="order" onchange="location.href=main.pp(\''.SELF_SCRIPT.'?p='.$p.preg_replace('/\&order=\d*/i', '', $pp).'\'+(this.value==2?\'&order=2\':\'\'));">
-      <option value="1"'.($order != 2 ? ' selected': '').'>默认顺序</option>
-      <option value="2"'.($order == 2 ? ' selected': '').'>反序查看</option>
-    </select></div></div>
-  </div>';
 		$text .= $text_admin_run_hand;
 		unset($text_admin_run_hand);
 		$thisyear = gmdate("Y", time() + floatval($web["time_pos"]) * 3600);
@@ -551,13 +536,12 @@ unset($text);
 <?php if ($recent_focus_id !== '') { ?>
 <script>
 // Select and scroll the specific post only after the archive has been rendered.
-window.addEventListener('load', function () {
+window.addEventListener('DOMContentLoaded', function () {
     var card = document.getElementById(<?php echo json_encode($recent_focus_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
     if (!card) return;
     card.classList.add('just-posted');
-    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (window.requestAnimationFrame) {
-        window.requestAnimationFrame(function () { card.scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', block: 'center'}); });
+        window.requestAnimationFrame(function () { card.scrollIntoView({behavior: 'auto', block: 'center'}); });
     } else {
         card.scrollIntoView();
     }
