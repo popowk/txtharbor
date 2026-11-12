@@ -10,7 +10,7 @@
 
 header("content-type: text/html; charset=UTF-8");
 require_once('config.php');
-require_once('inc/content.php');
+require_once('inc/entries.php');
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
 
@@ -412,6 +412,29 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
 		}
 	}
 
+    // Private settings are committed before publishing the record in index.txt.
+    $expiry = isset($_POST['expiry']) && is_string($_POST['expiry']) ? $_POST['expiry'] : 'never';
+    $expiration = 0;
+    if ($expiry === '1d') $expiration=time()+86400;
+    elseif ($expiry === '7d') $expiration=time()+7*86400;
+    elseif ($expiry === '30d') $expiration=time()+30*86400;
+    elseif ($expiry === 'custom') {
+        $raw_date=$_POST['expiry_custom']??'';
+        $date=is_string($raw_date)?DateTimeImmutable::createFromFormat('!Y-m-d\TH:i',$raw_date,new DateTimeZone('Asia/Shanghai')):false;
+        if (!$date || $date->getTimestamp()<=time()) write_finish(false,'请选择未来的过期时间（北京时间）','',422);
+        $expiration=$date->getTimestamp();
+    } elseif ($expiry !== 'never') write_finish(false,'有效期参数不正确','',422);
+    $password = isset($_POST['access_password']) && is_string($_POST['access_password']) ? $_POST['access_password'] : '';
+    if ($password !== '' && (strlen($password)<8 || strlen($password)>128))
+        write_finish(false, '访问密码至少 8 位，不超过 128 字节', '', 422);
+    if (isset($_POST['access_password']) && !is_string($_POST['access_password']))
+        write_finish(false,'访问密码格式不正确','',422);
+    $password_digest = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : '';
+    if ($password !== '' && (!is_string($password_digest) || $password_digest === ''))
+        write_finish(false,'服务器无法安全生成密码哈希，留言未发布','',500);
+    // A global advisory lock also serializes new writes that allocate old free slots.
+    $write_lock = @fopen('data/.th-write.lock', 'c');
+    if (!$write_lock || !@flock($write_lock, LOCK_EX)) write_finish(false,'写入锁定失败，请重试','',503);
 	$strput = time().''.($web['ip_open'] !== 0 ? $ip : '').'|'.$posttype.'|'.text_v2_pack($subj, $text).'|'.($web['review'] == 1 && !ADMIN_POWER ? '|' : ' ').'';
 	$strlen = strlen($strput);
 	
@@ -429,7 +452,20 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
 	if (!file_seek_put_contents('data/file.php', $strput, $loc)) {
         write_finish(false, '无法保存留言，服务器数据库目录可能没有写权限', '', 500);
 	}
-	unset($text, $strput);
+    $new_id = th_entry_id($loc, $strlen, explode('|', $strput));
+    unset($text, $strput);
+    try {
+        // The metadata sidecar is an explicit part of this transaction: never expose a
+        // password-protected or expiring entry before its access restrictions exist.
+        th_metadata_update(function ($all) use ($new_id, $expiration, $password_digest) {
+            $all[$new_id] = array('expires_at'=>$expiration,
+                'pinned'=>false,'media'=>array(),
+                'password_hash'=>$password_digest);
+            return $all;
+        });
+    } catch (Throwable $error) {
+        write_finish(false, '留言未发布：权限设置保存失败（'.$error->getMessage().'）', '', 500);
+    }
 
 	//处理索引文件
     if (@file_put_contents('data/index.txt', str_pad($loc.'|'.$strlen, INDEX_WIDTH, ' '), LOCK_EX | FILE_APPEND) === false) {
@@ -438,6 +474,7 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
 	
 	//优化空闲库
 	comb_space();
+    @flock($write_lock, LOCK_UN); @fclose($write_lock);
 
     if ($track_daily) {
         // Daily statistics are not part of the database commit; missing files
@@ -557,11 +594,22 @@ elseif ($_POST['act'] == 'del') :
 	if (!isset($_POST['delete_token']) || !is_string($_POST['delete_token']) || !hash_equals(text_v2_delete_token(), $_POST['delete_token'])) {
 		die('<script>main.addSubmitSafe_(\'i\', \'安全验证失败，请刷新留言页面重试\');</script>安全验证失败</body></html>');
 	}
+    $th_delete_lock = @fopen('data/.th-write.lock','c');
+    if (!$th_delete_lock || !@flock($th_delete_lock, LOCK_EX)) die('留言数据库正在被修改，请稍后重试');
 	$fs = file_size('data/index.txt');
 	if ($fs % INDEX_WIDTH != 0) {
 		die('<script> main.addSubmitSafe_(\'i\', \'程序出错！你可能中途修改了配置文件或数据库索引文件，导致索引步长与配置不符，请恢复上次正确的配置\'); </script>
 		程序出错！你可能中途修改了配置文件或数据库索引文件，导致索引步长与配置不符，请恢复上次正确的配置</body></html>');
 	}
+    // Resolve stable IDs before the legacy index compaction removes the records.
+    $th_deleted_ids = array();
+    try {
+        foreach (th_entries_scan() as $item) {
+            if (in_array(th_entry_key($item), (array)$_POST['id'], true)) $th_deleted_ids[]=$item['id'];
+        }
+    } catch (Throwable $error) {
+        die('<script>main.addSubmitSafe_("i","留言保护数据不可用，删除已取消");</script>删除已取消');
+    }
 	$_POST['id'] = array_unique(array_filter((array) $_POST['id']));
 	if (count($_POST['id']) == 0) {
 		die('<script> main.addSubmitSafe_(\'i\',\'参数缺失！或没有选中项\'); </script>
@@ -609,19 +657,56 @@ elseif ($_POST['act'] == 'del') :
 	
 	//处理空闲库
 	comb_space();
+    // Never drop access restrictions before the index deletion has succeeded.
+    if ($th_deleted_ids) {
+        try {
+            th_metadata_update(function($all) use($th_deleted_ids) {
+                foreach($th_deleted_ids as $id) unset($all[$id]);
+                return $all;
+            });
+        } catch (Throwable $e) {
+            die('<script>main.addSubmitSafe_("i","留言索引已删除，但扩展信息清理失败，请联系管理员检查 data/entry_meta.php");</script>扩展信息清理失败');
+        }
+    }
+
 	
 	if (file_size('data/index.txt') == 0) {
 		file_put_contents('data/file.php', '<?php die(); ?>', LOCK_EX);
 		file_put_contents('data/space.txt', '', LOCK_EX);
 	}
 	
+    @flock($th_delete_lock, LOCK_UN); @fclose($th_delete_lock);
 	die('<script> main.addSubmitSafe_(\'ok\', \'删除完成\', \'htmlbody.location.reload();\', 80); </script>
 	<a href="./">删除完成</a></body></html>');
 
 
       
-//回复
+// 回复写入扩展元数据，而非改写旧记录/指针，保证永久分享链接稳定。
 elseif ($_POST['act'] == 'reply') :
+    if (!ADMIN_POWER) die('<script>main.addSubmitSafe_("i","管理权限不足");</script>权限不足');
+    if (!isset($_POST['delete_token']) || !is_string($_POST['delete_token']) || !hash_equals(text_v2_delete_token(), $_POST['delete_token']))
+        die('<script>main.addSubmitSafe_("i","验证失败，请刷新后重试");</script>安全验证失败');
+    $reply_key = isset($_POST['reply_id']) && is_string($_POST['reply_id']) ? $_POST['reply_id'] : '';
+    $reply_text = isset($_POST['content']) && is_string($_POST['content']) ? $_POST['content'] : '';
+    $reply_problem = text_v2_problem($reply_text, WORD_SIZE, '回复');
+    if ($reply_problem !== '') die('<script>main.addSubmitSafe_("i","回复内容不合法");</script>内容不合法');
+    filter_badwords($reply_text);
+    try {
+        $reply_entry = null;
+        foreach (th_entries_scan() as $item) { if (th_entry_key($item) === $reply_key) { $reply_entry=$item; break; } }
+        if (!$reply_entry || $reply_entry['pending']) throw new RuntimeException('留言不存在或仍在审核');
+        th_metadata_update(function($all) use($reply_entry,$reply_text) {
+            $state=isset($all[$reply_entry['id']]) && is_array($all[$reply_entry['id']]) ? $all[$reply_entry['id']] : array();
+            $state['reply']=$reply_text;
+            if(!isset($state['media']))$state['media']=array();
+            $all[$reply_entry['id']]=$state;
+            return $all;
+        });
+    }catch(Throwable $e){die('<script>main.addSubmitSafe_("i","回复保存失败");</script>回复保存失败');}
+    die('<script>main.addSubmitSafe_("ok","回复已保存","htmlbody.location.reload();",80);</script>回复完成');
+
+// 回复旧逻辑保留备查（已被上面的兼容入口处理，不再运行）。
+elseif (false) :
 	if (!file_exists('data/space.txt')) file_put_contents('data/space.txt', '', LOCK_EX);
 	if (!ADMIN_POWER) {
 		die('<script> main.addSubmitSafe_(\'i\', \'管理权限不足！\'); </script>

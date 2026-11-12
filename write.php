@@ -5,7 +5,7 @@
  */
 header('Content-Type: text/html; charset=UTF-8');
 require_once 'config.php';
-require_once 'inc/content.php';
+require_once 'inc/entries.php';
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
 if ($web['site_close'] === 1) { header('Location: 0.php'); exit; }
@@ -19,7 +19,7 @@ $category = isset($_GET['subarea']) && is_numeric($_GET['subarea']) && isset($we
 <title><?php echo htmlspecialchars($web['sitename'], ENT_QUOTES, 'UTF-8'); ?> · 新建留言</title>
 <script src="inc/theme.js?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
 <link rel="stylesheet" href="inc/style.css?<?php echo filemtime('inc/style.css'); ?>" />
-<link rel="stylesheet" href="inc/modern.css?<?php echo filemtime('inc/modern.css'); ?>" />
+<link rel="stylesheet" href="inc/modern.css?<?php echo filemtime('inc/modern.css'); ?>" /><link rel="stylesheet" href="inc/entries.css?<?php echo @filemtime('inc/entries.css'); ?>" />
 <link rel="stylesheet" href="inc/theme.css?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
 <script src="inc/main.js?<?php echo filemtime('inc/main.js'); ?>"></script>
 <script>
@@ -79,6 +79,13 @@ main.maxContentWordCount = <?php echo WORD_SIZE; ?>;
         <?php if ($web['imcode_close'] !== 1 && !confirm_power()) { ?>
         <div class="field-block" id="imcodediv"><div class="field-title"><label for="imcode">验证码 <span class="redword">*</span></label></div><div class="captcha-row"><input type="text" name="imcode" id="imcode" size="6" maxlength="6" autocomplete="off" /><iframe id="imcodejs" name="imcodejs" title="验证码" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" src="inc/imcode.html"></iframe></div></div>
         <?php } ?>
+        <div class="entry-publish-options">
+          <div class="field-title"><label>分享设置</label><small>默认永久公开，密码留空表示不加密</small></div>
+          <div class="entry-options-grid"><label>有效期
+            <select name="expiry" id="expiry-option"><option value="never">永久有效</option><option value="1d">1 天</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="custom">自定义时间</option></select>
+          </label><label>访问密码（可选）<input type="password" name="access_password" class="modern-input" autocomplete="new-password" placeholder="至少 8 位，留空为公开"></label></div>
+          <label id="expiry-custom-wrap" hidden>到期时间（北京时间）<input type="datetime-local" name="expiry_custom" class="modern-input"></label>
+        </div>
         <div class="editor-footer"><span class="privacy-hint">保留换行、空格及特殊字符</span><button class="send2 primary-button" type="submit">发布留言 <span aria-hidden="true">↗</span></button></div>
         <div id="submit-feedback" class="submit-feedback" role="alert" aria-live="assertive" hidden></div>
       </div>
@@ -89,6 +96,9 @@ main.maxContentWordCount = <?php echo WORD_SIZE; ?>;
 <noscript><div class="warning">请开启 JavaScript 以使用快捷操作和提交反馈。</div></noscript>
 <script>
 (function(){
+  var expiry = document.getElementById('expiry-option');
+  var custom = document.getElementById('expiry-custom-wrap');
+  if (expiry && custom) expiry.addEventListener('change', function () { custom.hidden = expiry.value !== 'custom'; });
   main.runGetWordCount('content', main.maxContentWordCount);
   if (document.getElementById('subject')) main.runGetWordCount('subject', main.maxSubjectWordCount);
 })();

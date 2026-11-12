@@ -13,9 +13,18 @@ header("content-type:text/html; charset=UTF-8");
 //header('Pragma:no-cache');
 
 require_once('config.php');
-require_once('inc/content.php');
+require_once('inc/entry_view.php');
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: no-store, private');
+define('ADMIN_POWER', confirm_power());
+if (isset($_GET['id']) && is_string($_GET['id']) && preg_match('/^[a-f0-9]{24}$/D', $_GET['id'])) {
+    header('Location: entry.php?id='.$_GET['id'], true, 302);
+    exit;
+}
+try { $th_meta = th_metadata_read(); }
+catch (Throwable $e) { http_response_code(503); exit('留言访问设置不可用，已安全暂停显示。请管理员检查 data/entry_meta.php。'); }
+th_access_session();
 if ($web['site_close'] === 1) {
 	header('Location: 0.php');
 	die();
@@ -120,15 +129,14 @@ function get_list($loc_len, $pos, $fp2) {
 		}
 	}
 
-	$area = (isset($web['subarea'][$row[1]]) || $ip) ? '<a href="write.php?subarea='.$row[1].'" class="area"'.$ip_guest.'><img src="img/area.png" alt="发表版区" />'.$web['subarea'][$row[1]].''.$ip_admin.'</a>' : '';
+	$area = (isset($web['subarea'][$row[1]]) || $ip) ? '<a href="write.php?subarea='.$row[1].'" class="area"'.$ip_guest.'><img src="img/area.png" alt="发表版区" />'.text_v2_html(isset($web['subarea'][$row[1]])?$web['subarea'][$row[1]]:'').''.$ip_admin.'</a>' : '';
     $row_count = count($row);
-    $record = text_v2_message(isset($row[2]) ? $row[2] : '');
-    $entry_id = 'entry_' . (int)$pos;
-    $body = '<div class="entry-raw" id="'.$entry_id.'">'.text_v2_html($record['content']).'</div>';
-    $content = ($record['subject'] !== '' ? '<h2 class="entry-subject">'.text_v2_html($record['subject']).'</h2>' : '') . $body;
-    $is_pending = $row_count == 5 && trim($row[3]) === '' && trim($row[4]) === '';
-    if ($is_pending) $content = $text_admin_run_check($loc.'|'.$len.'|'.$pos, $content);
-    $copy_button = $is_pending && !ADMIN_POWER ? '' : '<button type="button" class="copy-btn" onclick="main.copyEntry(\''.$entry_id.'\', this)" aria-label="复制这条留言">一键复制</button>';
+    $entry = isset($GLOBALS['th_entry_by_pos'][$pos]) ? $GLOBALS['th_entry_by_pos'][$pos] : null;
+    if (!$entry) return '';
+    $is_pending = $entry['pending'];
+    $content = th_entry_body_html($entry, ADMIN_POWER);
+    if ($is_pending && ADMIN_POWER) $content = $text_admin_run_check($loc.'|'.$len.'|'.$pos, $content);
+    $copy_button = th_entry_controls($entry, ADMIN_POWER);
     $delete_button = ADMIN_POWER ? '<button type="button" class="delete-entry-btn" onclick="return thDeleteOne(\''.$loc.'|'.$len.'|'.$pos.'\');">删除留言</button>' : '';
 
 	$date = gmdate("Y-m-d H:i:s", substr($row[0], 0, 10) + floatval($web["time_pos"]) * 3600);
@@ -141,15 +149,15 @@ function get_list($loc_len, $pos, $fp2) {
 	$i = substr($date, $pos2 + 3, 2);
 
     $reply_html = '';
-    if ($row_count == 4 && trim($row[3]) !== '') {
+    if ($entry['reply'] !== '' && th_entry_public_content($entry)) {
         $reply_id = 'replycopy_'.(int)$pos;
-        $reply_html = '<div class="ad_reply"><div class="reply-head"><strong>管理员回复</strong><button type="button" class="copy-btn" onclick="main.copyEntry(\''.$reply_id.'\', this)">复制回复</button></div><div class="entry-raw" id="'.$reply_id.'">'.text_v2_html(text_v2_reply($row[3])).'</div></div>';
+        $reply_html = '<div class="ad_reply"><div class="reply-head"><strong>管理员回复</strong><button type="button" class="copy-btn" onclick="main.copyEntry(\''.$reply_id.'\', this)">复制回复</button></div><div class="entry-raw" id="'.$reply_id.'">'.text_v2_html($entry['reply']).'</div></div>';
     }
     return '
   <article class="body rounded message-card" id="area_'.$loc.'|'.$len.'|'.$pos.'">
     <div class="title"><label for="m_'.$loc.'|'.$len.'|'.$pos.'" class="m"><input name="id[]" id="m_'.$loc.'|'.$len.'|'.$pos.'" type="checkbox" value="'.$loc.'|'.$len.'|'.$pos.'" /></label></div>
     <div class="texts">
-      <div class="title_bottom"><div class="message-meta"><span class="message-dot"></span>'.$area.'<span class="message-date">'.$date.'</span></div>'.$copy_button.$delete_button.'</div>
+      <div class="title_bottom"><div class="message-meta"><span class="message-dot"></span>'.$area.'<span class="message-date">'.$date.'</span></div>'.($entry['pinned']?'<span class="entry-pin">📌 置顶</span>':'').'<span class="entry-buttons">'.$copy_button.$delete_button.'</span></div>
       <div class="text">'.$content.'</div>
       '.$reply_html.'
     </div>
@@ -184,34 +192,41 @@ if (isset($_GET['pn'])) {
 	}
 }
 
-$n = ceil($size / INDEX_WIDTH); //数量
-$p = get_page($n); //页码
-
-// A successful post redirects here with its exact storage key. Find its index
-// position before rendering, so pagination and reverse display order work.
+// Metadata-driven index ordering: pin first, then selected order; exclude expired for guests.
+try { $th_entries = th_entries_scan($th_meta); }
+catch (Throwable $e) { http_response_code(503); exit('留言索引读取失败，请检查文件完整性。'); }
+$th_visible_entries = array_values(array_filter($th_entries, function ($entry) { return th_entry_visible($entry); }));
+$th_entry_by_pos = array();
+foreach ($th_visible_entries as $entry) $th_entry_by_pos[$entry['pos']] = $entry;
+$sort_order = isset($_GET['order']) && in_array((int)$_GET['order'], array(1, 2), true)
+    ? (int)$_GET['order'] : (int)$web['order'];
+usort($th_visible_entries, function ($a, $b) use ($sort_order) {
+    if ($a['pinned'] !== $b['pinned']) return $a['pinned'] ? -1 : 1;
+    // Old index sequence is stable even when multiple posts share the same timestamp.
+    return $sort_order === 2 ? $a['pos'] <=> $b['pos'] : $b['pos'] <=> $a['pos'];
+});
+$n = count($th_visible_entries);
+$p = max(1, min((int)($_GET['p'] ?? 1), max(1, (int)ceil($n / $web['pagesize']))));
 $recent_focus_id = '';
-if ($n > 0 && !empty($web['pagesize']) && isset($_GET['focus']) && is_string($_GET['focus']) &&
-    preg_match('/^([0-9]{1,12})-([0-9]{1,10})$/D', $_GET['focus'], $focus_match)) {
-    $wanted_record = $focus_match[1].'|'.$focus_match[2];
-    $focus_fp = @fopen('data/index.txt', 'rb');
-    if ($focus_fp) {
-        // New posts normally match on the very first read.
-        for ($focus_i = (int)$n - 1; $focus_i >= 0; $focus_i--) {
-            $focus_pos = $focus_i * INDEX_WIDTH;
-            if (fseek($focus_fp, $focus_pos, SEEK_SET) !== 0) break;
-            if (trim(fread($focus_fp, INDEX_WIDTH)) === $wanted_record) {
-                $recent_focus_id = 'area_'.$focus_match[1].'|'.$focus_match[2].'|'.$focus_pos;
-                $p = (int)floor(($n - 1 - $focus_i) / $web['pagesize']) + 1;
-                break;
-            }
+if (isset($_GET['focus']) && is_string($_GET['focus']) && preg_match('/^(\d{1,12})-(\d{1,10})$/D', $_GET['focus'], $matched)) {
+    foreach ($th_visible_entries as $i => $entry) {
+        if ($entry['loc'] == (int)$matched[1] && $entry['len'] == (int)$matched[2]) {
+            $recent_focus_id = 'area_'.th_entry_key($entry);
+            $p = (int)floor($i / $web['pagesize']) + 1;
+            break;
         }
-        fclose($focus_fp);
     }
 }
-
-define('ADMIN_POWER', confirm_power());
+if (isset($_GET['focus_id']) && is_string($_GET['focus_id'])) {
+    foreach ($th_visible_entries as $i => $entry) {
+        if ($entry['id'] === $_GET['focus_id']) {
+            $recent_focus_id = 'area_'.th_entry_key($entry);
+            $p = (int)floor($i / $web['pagesize']) + 1;
+            break;
+        }
+    }
+}
 define('SELF_SCRIPT', preg_replace('/(\?.*)*$/', '', $_SERVER['REQUEST_URI']));
-
 
 //导入管理模块
 if (isset($_GET['admin_run']) && $_GET['admin_run'] == 1) {
@@ -345,6 +360,7 @@ if (isset($_GET['admin_run']) && $_GET['admin_run'] == 1) {
 <script src="inc/theme.js?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
 <link id="css" href="inc/style.css?<?php echo filemtime('inc/style.css'); ?>" rel="stylesheet" type="text/css">
 <link href="inc/modern.css?<?php echo filemtime('inc/modern.css'); ?>" rel="stylesheet" type="text/css">
+<link href="inc/entries.css?<?php echo @filemtime('inc/entries.css'); ?>" rel="stylesheet" type="text/css">
 <link rel="stylesheet" href="inc/theme.css?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
 <?php echo $text_admin_run_css; unset($text_admin_run_css); ?>
 <script language="javascript" type="text/javascript" src="inc/main.js?<?php echo filemtime('inc/main.js'); ?>"></script>
@@ -456,54 +472,20 @@ if (!file_exists('data') || !file_exists('data/index.txt') || !file_exists('data
   <?php
 
 if ($n > 0) {
-	$order = isset($_GET['order']) && in_array($_GET['order'], array(1, 2)) ? (int)$_GET['order'] : $web['order'];
-	
-	if (($fp = @fopen('data/index.txt', 'rb')) && ($fp2 = @fopen('data/file.php', 'rb'))) {
-		$text .= $text_admin_run_hand;
-		unset($text_admin_run_hand);
-		$thisyear = gmdate("Y", time() + floatval($web["time_pos"]) * 3600);
-
-		if ($order == 1) {
-			$pos = $size - INDEX_WIDTH * $web['pagesize'] * ($p - 1) - INDEX_WIDTH;
-			$pos = $pos > $size - INDEX_WIDTH ? $size - INDEX_WIDTH: $pos;
-			$end = $size - INDEX_WIDTH * $web['pagesize'] * $p;
-			$end = $end < 0 ? 0 : $end;
-			while ($pos >= $end) {
-				fseek($fp, $pos, SEEK_SET);
-				$line = fread($fp, INDEX_WIDTH);
-				$text .= get_list($line, $pos, $fp2);
-				$pos = ftell($fp) - 2 * INDEX_WIDTH;
-			}
-		} else {
-			$pos = $size - INDEX_WIDTH * $web['pagesize'] * $p;
-			$pos = $pos < 0 ? 0 : $pos;
-			$end = $size - INDEX_WIDTH * $web['pagesize'] * ($p - 1) - INDEX_WIDTH;
-			$end = $end > $size ? $size: $end;
-			while ($pos <= $end) {
-				fseek($fp, $pos, SEEK_SET);
-				$text .= get_list(fread($fp, INDEX_WIDTH), $pos, $fp2);
-				$pos = ftell($fp);
-			}
-		}
-		@fclose($fp);
-		@fclose($fp2);
-		unset($text_admin_run_check, $size, $thisyear, $order, $line, $end, $pos);
-		unset($fp, $fp2);
-
-		$text .= get_page_foot($n, $web['pagesize'], $p);
-		unset($n, $p);
-	} else {
-		$text .= '
-  <div class="body rounded">
-    <div class="texts">
-      <p>数据库读取失败！请稍后再试</p>
-    </div>
-  </div>';
-		
-	}
-	
-
-
+    $order = $sort_order;
+    if (($fp2 = @fopen('data/file.php', 'rb'))) {
+        $text .= $text_admin_run_hand;
+        unset($text_admin_run_hand);
+        $thisyear = gmdate("Y", time() + floatval($web["time_pos"]) * 3600);
+        $page_items = array_slice($th_visible_entries, ($p - 1) * $web['pagesize'], $web['pagesize']);
+        foreach ($page_items as $entry) {
+            $text .= get_list($entry['loc'].'|'.$entry['len'], $entry['pos'], $fp2);
+        }
+        fclose($fp2);
+        $text .= get_page_foot($n, $web['pagesize'], $p);
+    } else {
+        $text .= '<div class="body rounded"><div class="texts"><p>数据库读取失败</p></div></div>';
+    }
 } else {
 	$text .= '
   <div class="body rounded">

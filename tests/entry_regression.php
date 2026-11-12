@@ -1,0 +1,42 @@
+<?php
+/** Runs on a dedicated temporary fixture, never touches live data. */
+$base=sys_get_temp_dir().'/th-entries-test-'.bin2hex(random_bytes(4));
+@mkdir($base.'/inc',0700,true);@mkdir($base.'/data',0700,true);@mkdir($base.'/__temp__',0700,true);
+$project=dirname(__DIR__);
+foreach(array('content.php','entries.php','markdown.php','entry_view.php') as $p)
+    copy($project.'/inc/'.$p,$base.'/inc/'.$p);
+register_shutdown_function(function()use($base){
+    $walk=function($path)use(&$walk){if(is_dir($path)){foreach(scandir($path)as $name){if($name==='.'||$name==='..')continue;$walk($path.'/'.$name);}@rmdir($path);}else @unlink($path);};$walk($base);
+});
+define('INDEX_WIDTH',15);
+require $base.'/inc/entry_view.php';
+function ok($value,$desc){if(!$value){fwrite(STDERR,"FAIL: $desc\n");exit(1);}echo "PASS: $desc\n";}
+$initial='<?php die(); ?>';
+file_put_contents($base.'/data/file.php',$initial);
+$posts=[
+    '1700000000|0|'.text_v2_pack('# Title',"**Bold** and \\server\\docs\n<script>alert(1)</script>").'| ',
+    '1700000001|0|'.iconv('UTF-8','GB18030','旧标题<旧内容>第二行').'| ',
+];
+$index='';$pos=strlen($initial);
+foreach($posts as $post){$index.=str_pad($pos.'|'.strlen($post),INDEX_WIDTH,' ');file_put_contents($base.'/data/file.php',$post,FILE_APPEND);$pos+=strlen($post);}
+file_put_contents($base.'/data/index.txt',$index);
+$entries=th_entries_scan();ok(count($entries)===2,'Read V2 + legacy without schema migration');
+$id=$entries[0]['id'];ok(preg_match('/^[a-f0-9]{24}$/D',$id)===1,'Opaque stable ID');
+ok(strpos($entries[0]['content'],'\\server\\docs')!==false,'Slash fidelity');
+ok($entries[1]['content']==="旧内容\n第二行",'Legacy GBK decode');
+ok(th_md_detect($entries[0]['content']),'Markdown recognition');
+$render=th_md_render($entries[0]['content']);
+ok(strpos($render,'<strong>Bold</strong>')!==false,'Safe Markdown bold rendering');
+ok(strpos($render,'<script>')===false && strpos($render,'&lt;script&gt;')!==false,'Raw HTML never executed');
+$other=th_md_render('[Click](javascript:alert(1))');ok(strpos($other,'href=')===false,'Unsafe URL does not render as a link');
+th_metadata_update(function($all)use($id){$all[$id]=array('subject'=>'Edited title','content'=>'Edited **markdown**','pinned'=>true,
+    'expires_at'=>time()+3600,'password_hash'=>password_hash('secret-abc123',PASSWORD_DEFAULT),'media'=>array());return $all;});
+$updated=th_entries_scan();ok($updated[0]['id']===$id && $updated[0]['subject']==='Edited title' && $updated[0]['pinned'],'Edit and pin preserve ID');
+ok(!th_entry_public_content($updated[0]),'Password blocks copied/rendered raw content');
+ok(strpos(th_entry_body_html($updated[0]),'Edited **markdown**')===false,'Password blocks Markdown source in HTML');
+th_metadata_update(function($all)use($id){$all[$id]['expires_at']=time()-1;return $all;});
+ok(th_entry_expired(th_entry_find($id)) && !th_entry_visible(th_entry_find($id)),'Expired entry is not publicly visible');
+file_put_contents($base.'/data/file.php',$initial.$posts[0].$posts[1]);
+ok(th_entry_find($id)['id']===$id,'ID unchanged across metadata updates');
+rename($base.'/data/entry_meta.php',$base.'/data/meta.backup.php');
+try{th_entries_scan();ok(false,'Fail closed when metadata disappears');}catch(RuntimeException $e){ok(true,'Fail closed when protected sidecar is missing');}

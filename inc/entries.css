@@ -1,0 +1,50 @@
+/* TxtHarbor v1.5: raw Markdown preservation, share/settings, password cards. */
+.app-page .entry-actions,.app-page .entry-buttons{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.app-page .entry-action{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border:1px solid var(--line-strong);border-radius:9px;color:var(--cyan-bright);background:var(--panel-2);font-size:12px;font-weight:600;text-decoration:none}
+.app-page .entry-action:hover{border-color:var(--cyan);color:var(--cyan-bright)}
+.entry-pin{color:var(--cyan-bright);font-size:12px;white-space:nowrap}
+.entry-copy-source[hidden]{display:none!important}
+.app-page .entry-content,.app-page .markdown-rendered{font-size:14px;line-height:1.8;overflow-wrap:anywhere;white-space:normal}
+.app-page .markdown-rendered p{margin:0 0 9px;line-height:1.9}
+.app-page .markdown-rendered h1,.app-page .markdown-rendered h2,.app-page .markdown-rendered h3{margin:14px 0 9px;color:var(--ink);font-weight:700;line-height:1.45}
+.app-page .markdown-rendered h1{font-size:21px}.app-page .markdown-rendered h2{font-size:18px}.app-page .markdown-rendered h3{font-size:16px}
+.app-page .markdown-rendered h4,.app-page .markdown-rendered h5,.app-page .markdown-rendered h6{font-size:14px;margin:10px 0}
+.app-page .markdown-rendered ul,.app-page .markdown-rendered ol{margin:9px 0 15px;padding-left:26px}
+.app-page .markdown-rendered li{margin:3px 0}
+.app-page .markdown-rendered blockquote{border-left:3px solid var(--cyan);padding:7px 13px;margin:11px 0;background:var(--panel-2);border-radius:0 7px 7px 0}
+.app-page .markdown-rendered code,.app-page .entry-source-view pre{font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+.app-page .markdown-rendered pre{max-width:100%;overflow:auto;padding:15px 17px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:10px}
+.app-page .markdown-rendered pre code{white-space:pre;overflow-wrap:normal}
+.app-page .markdown-rendered p code{padding:1px 5px;background:var(--panel-2);border-radius:5px}
+.app-page .markdown-rendered a{color:var(--cyan-bright);text-decoration:underline;text-underline-offset:3px}
+.app-page .markdown-rendered .md-break{height:9px}
+.entry-source-view{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.entry-source-view summary{cursor:pointer;color:var(--muted);font-size:12px}
+.entry-source-view pre{padding:13px 15px;background:var(--panel-2);border-radius:9px;white-space:pre-wrap;tab-size:4;overflow:auto}
+.entry-muted{color:var(--muted)}
+.entry-locked{padding:18px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:13px;line-height:1.9}
+.entry-locked a{color:var(--cyan-bright);text-decoration:underline}
+.entry-detail .texts{padding:26px 30px}
+.entry-detail .entry-topline{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;color:var(--muted);font-size:12px}
+.entry-detail .entry-topline a{color:var(--cyan-bright)}
+.entry-detail .entry-actions{margin-top:18px}
+.entry-settings{display:flex;flex-direction:column;gap:17px;padding:25px 28px;margin-bottom:35px}
+.entry-settings label,.entry-publish-options label,.entry-locked label{display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:600;color:var(--ink)}
+.entry-settings label.entry-check{flex-direction:row;align-items:center}
+.entry-settings select,.entry-publish-options select{min-height:41px;padding:9px;border:1px solid var(--line-strong);border-radius:9px;color:var(--ink);background:var(--panel-2);font:inherit}
+.entry-settings .modern-input,.entry-publish-options .modern-input,.entry-locked .modern-input{width:100%;max-width:100%;padding:12px;border-radius:9px;border:1px solid var(--line-strong);color:var(--ink);background:var(--panel-2)}
+.entry-settings textarea{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;min-height:260px;resize:vertical;white-space:pre-wrap}
+.entry-publish-options{border-top:1px solid var(--line);padding-top:17px;margin-top:12px;display:flex;flex-direction:column;gap:12px}
+.entry-publish-options .entry-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.entry-publish-options .field-title{margin-bottom:0}
+.entry-settings .editor-footer{display:flex;justify-content:flex-end;align-items:center;gap:20px}
+.entry-alert,.entry-success{padding:13px 18px;margin-bottom:17px;border-radius:9px;background:var(--panel-2);border:1px solid var(--line-strong)}
+.entry-alert{border-color:#d46d7d}.entry-success{border-color:var(--cyan)}
+.app-page .message-card .title_bottom{flex-wrap:wrap}
+:root[data-theme="light"] .app-page .entry-action{color:#0b7092;background:#f8fbfd}
+:root[data-theme="light"] .entry-locked{color:#38516b;background:#f7fbfd}
+:root[data-theme="light"] .app-page .markdown-rendered h1,:root[data-theme="light"] .app-page .markdown-rendered h2,:root[data-theme="light"] .app-page .markdown-rendered h3{color:#172d45}
+:root[data-theme="light"] .entry-settings select,:root[data-theme="light"] .entry-publish-options select,:root[data-theme="light"] .entry-settings .modern-input,:root[data-theme="light"] .entry-publish-options .modern-input,:root[data-theme="light"] .entry-locked .modern-input{background:#fff;color:#23405b;border-color:#d6e3ed}
+@media(max-width:670px){.entry-publish-options .entry-options-grid{grid-template-columns:1fr}.entry-settings{padding:17px}.entry-detail .texts{padding:18px}.entry-pin{order:0}.entry-buttons{width:100%}}
+
+.entry-pin-form{display:flex;justify-content:flex-end;margin-bottom:13px}.entry-pin-form button{cursor:pointer}

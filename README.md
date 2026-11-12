@@ -4,12 +4,23 @@
 
 > **版权注意：** 原项目头部注明作者 162100.com，声明“仅供代码爱好者学习交流，禁用于商业目的，请保留此版权信息”。本仓库保留原代码版权声明；请勿未经原版权方许可自行换成 MIT、Apache 等许可证或用于商业目的。
 
-## v1.4.2 体验优化
+## v1.5.0 留言内容与分享升级
 
-- 浏览页将排序放在“全部留言”同一行；改为“最新优先 / 最早优先”。
-- 主题按钮改为紧凑、统一边框的双操作控件：点击切换颜色，箭头选择自动 / 浅色 / 深色。
-- 单页不再重复显示“共1页”；多页使用简洁的页码、上一页/下一页和每页数量选择。
-- 留言保存成功立即定位；删除完成后缩短成功提示等待。不更改留言数据库格式或删除确认流程。
+- **Markdown 自动识别**：常用标题、粗体、斜体、删除线、列表、引用、代码块和 HTTP(S) 链接安全预览；所有原文完整保留。渲染默认禁止 HTML、脚本和外链图片自动加载。可切换查看原文并一键复制原始 Markdown。
+- **单条分享链接**：每条留言有 24 位固定标识 `entry.php?id=...`，分页、置顶、管理员编辑及新版管理员回复都不改变链接。删除后链接失效。
+- **管理员编辑与置顶**：允许标题和正文编辑、单独置顶、取消置顶；新版管理员回复也写入元数据，不改变历史索引指针。
+- **有效期**：发布时选择永久、1/7/30 天或自定义北京时间；到期后访客列表和详情均不展示（管理员仍可续期）。到期默认隐藏，不自动物理删除。
+- **密码保护**：发布时或管理员编辑时设置/更换/移除访问密码。使用 `password_hash` 存储，未解锁不返回标题、正文、原始 Markdown 或复制内容；错误次数按 IP + 留言限制。
+- **旧数据兼容**：原 `data/file.php` 与 `data/index.txt` 原封不动，扩展内容保存在 `data/entry_meta.php`，原文编辑为叠加数据。数据文件异常时拒绝公开内容（fail-closed）。
+- **外部图片存储预留**：仅新增 `inc/media_store.php` 适配器合同、`docs/external-media.md` 设计说明及 `media` 元数据字段；**没有上传接口、图片预览或网盘绑定**，后续可以接 WebDAV、S3 兼容服务或网盘官方 API。
+
+### 非常重要：升级与安全
+
+1. 升级前完整备份 `config.php`、`data/` 和 `__temp__/`；**不要清空** `data/entry_meta.php`、`data/entry_meta_guard.php`，前者含访问密码的哈希及编辑后的内容。
+2. 共享链接只在新版本创建后保证稳定；以前按文件指针创建的 `?focus=` 提交跳转仍兼容，但不是永久分享地址。
+3. 在 Apache 上，`data/.htaccess` 会阻止 HTTP 直接访问数据目录；**Nginx 用户必须自行添加 `location ^~ /data/ { deny all; }` 与 `location ^~ /__temp__/ { deny all; }`** 并先核验现有站点根路径，以免数据库或临时文件被访问。
+4. 图片网盘尚未接入；不可直接把含隐私内容的公共网盘链接粘进私密 Markdown（当前不会自动嵌入图片，但外部链接本身可能不受本站密码控制）。正式接入外部附件必须使用服务端授权或短期有效签名地址。
+5. 提供常见 Markdown 语法的安全子集，不是完整 GFM；尤其不渲染原生 HTML 和远程图片，表格语法将按普通文本显示。
 
 ## 特性
 
@@ -55,18 +66,18 @@
 
 ## 发布 GitHub 更新
 
-每次正式发布都更新根目录 `VERSION`（如 `1.4.0`），然后运行：
+每次正式发布都更新根目录 `VERSION`（如 `1.5.0`），然后运行：
 
 ```sh
 python3 tools/build_release.py
 ```
 
-得到 `dist/txtharbor-update.zip`。推送到 `main` 时，仓库的 `.github/workflows/release.yml` 会根据 `VERSION` 自动创建对应 Tag 和正式 Release，并上传 `txtharbor-update.zip`（需要仓库允许 GitHub Actions 创建 Release）。也可以手动发布，Tag 要与版本对应（如 `v1.4.0`），附件名必须为 `txtharbor-update.zip`。
+得到 `dist/txtharbor-update.zip`。推送到 `main` 时，仓库的 `.github/workflows/release.yml` 会根据 `VERSION` 自动创建对应 Tag 和正式 Release，并上传 `txtharbor-update.zip`（需要仓库允许 GitHub Actions 创建 Release）。也可以手动发布，Tag 要与版本对应（如 `v1.5.0`），附件名必须为 `txtharbor-update.zip`。
 
 下载路径：
 
-- GitHub: `https://github.com/popowk/txtharbor/releases/download/v1.4.0/txtharbor-update.zip`
-- 国内代理: `https://git.wksite.cn/popowk/txtharbor/releases/download/v1.4.0/txtharbor-update.zip`
+- GitHub: `https://github.com/popowk/txtharbor/releases/download/v1.5.0/txtharbor-update.zip`
+- 国内代理: `https://git.wksite.cn/popowk/txtharbor/releases/download/v1.5.0/txtharbor-update.zip`
 
 在线安装要求 GitHub API 对该 Release 附件提供 `digest: sha256:...` 字段，且校验通过，否则只能手动下载覆盖，以免上传错误或代理异常导致破坏。新版更新中心的地址都可以修改，用户不必依赖固定仓库名。
 
@@ -81,6 +92,7 @@ python3 tools/build_release.py
 ```sh
 php tests/text_regression.php
 php tests/update_regression.php
+php tests/entry_regression.php
 ```
 
 ## 致谢

@@ -1,0 +1,2 @@
+# Apache: reject direct HTTP requests to any data file.
+Require all denied
