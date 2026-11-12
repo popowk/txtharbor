@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>验证码</title>
+<style type="text/css">
+<!--
+html { margin:0; padding:0; }
+body { margin:0; padding:0; background-color:transparent; }
+a#o_162100_imcode { position:relative; /*float:left; display:block;*/ vertical-align:top; display:inline-block; *display:inline; *zoom:1; width:72px; height:18px; font-size:1px; line-height:1px; outline:none; overflow:hidden; }
+a#o_162100_imcode b { position:absolute; top:0; width:12px; height:18px; overflow:hidden; }
+a#o_162100_imcode b i { float:left; width:2px; height:2px; padding:0; overflow:hidden; }
+-->
+</style>
+</head>
+<body>
+<a id="o_162100_imcode" href="javascript:void(0);" onClick="location.reload();return false;" title="点击更换验证码">162100</a>
+<script language="JavaScript" type="text/javascript">
+<!--
+/*
+* 程序名称：数字div（非图片）验证码
+* 作者：http://www.162100.com
+* 版本：3.1版（2024.3.11）
+* 声明：仅供代码爱好者学习交流，禁用于商业目的，请保留此版权信息
+*/
+(function() {
+	function getColor(str) {
+		var len = str.length;
+		var c = '#';
+		for (var i = 0; i < 6; i++) {
+			c += str.substr(Math.floor(Math.random() * len), 1);
+		}
+		return c;
+	}
+
+	function get_chk_numbercode(num_arr) {
+		var cf = (Math.floor(Math.random() * 10)) % 2;
+		var text = '';
+		for (var i = -1; i < 8; i++) {
+			for (var j = -1; j < 5; j++) {
+				text += '<i style="background-color:' + getColor(color[((i == -1 || i == 7 || j == -1 || j == 4) ? cf : (num_arr[i][j] == 1 ? ~cf + 2 : cf))]) + '"></i>';
+			}
+		}
+		return text;
+	}
+
+	function all162100Imcode() {
+		clearTimeout(timeS);
+		timeS = null;
+		var code = [];
+		for (var i = 0; i < numC.length; i++) {
+			code[i] = '<b style="left:' + (i * 12) + 'px;">' + get_chk_numbercode(num[numC.substr(i, 1)]) + '</b>';
+		}
+		code.sort(function() {
+			return 0.5 - Math.random();
+		});
+		//return code.join();
+		document.getElementById('o_162100_imcode').innerHTML = code.join();
+		timeS = setTimeout(all162100Imcode, imcodeSecond * 1000);
+	}
+
+	var imcodeLength = 6; //验证码长度
+	var imcodeSecond = 1; //变色的秒数
+	var imcookieName = 'regimcode_162100bbs'; //记录验证码的cookie名称
+
+	if (imcodeLength != 6) {
+		//document.write('<style>a#o_162100_imcode {width:' + (imcodeLength * 12) + 'px;}</style>')
+		document.getElementById('o_162100_imcode').style.width = (imcodeLength * 12) + 'px';
+	}
+	var timeS = null;
+	var color = ['AB0123456789', 'CDEF'];
+	var num = [
+		[
+			[, 1, 1, ],
+			[1, , , 1],
+			[1, , , 1],
+			[1, , , 1],
+			[1, , , 1],
+			[1, , , 1],
+			[, 1, 1, ]
+		],
+		[
+			[, , 1, ],
+			[, 1, 1, ],
+			[, , 1, ],
+			[, , 1, ],
+			[, , 1, ],
+			[, , 1, ],
+			[, , 1, ]
+		],
+		[
+			[, 1, 1, ],
+			[1, , , 1],
+			[, , , 1],
+			[, , 1, ],
+			[, 1, , ],
+			[1, , , ],
+			[1, 1, 1, 1]
+		],
+		[
+			[, 1, 1, ],
+			[1, , , 1],
+			[, , , 1],
+			[, , 1, ],
+			[, , , 1],
+			[1, , , 1],
+			[, 1, 1, ]
+		],
+		[
+			[, , 1, ],
+			[, 1, 1, ],
+			[1, , 1, ],
+			[1, , 1, ],
+			[1, 1, 1, 1],
+			[, , 1, ],
+			[, , 1, ]
+		],
+		[
+			[1, 1, 1, 1],
+			[1, , , ],
+			[1, , , ],
+			[1, 1, 1, ],
+			[, , , 1],
+			[, , , 1],
+			[1, 1, 1, ]
+		],
+		[
+			[, 1, 1, 1],
+			[1, , , ],
+			[1, , , ],
+			[1, 1, 1, ],
+			[1, , , 1],
+			[1, , , 1],
+			[, 1, 1, ]
+		],
+		[
+			[1, 1, 1, 1],
+			[1, , , 1],
+			[, , , 1],
+			[, , 1, ],
+			[, , 1, ],
+			[, , 1, ],
+			[, , 1, ]
+		],
+		[
+			[, 1, 1, ],
+			[1, , , 1],
+			[1, , , 1],
+			[, 1, 1, ],
+			[1, , , 1],
+			[1, , , 1],
+			[, 1, 1, ]
+		],
+		[
+			[, 1, 1, ],
+			[1, , , 1],
+			[1, , , 1],
+			[, 1, 1, 1],
+			[, , , 1],
+			[, , , 1],
+			[, 1, 1, ]
+		]
+	];
+
+	var numC = String(('111111' + Math.floor(Math.random() * 999999)).slice(-1 * imcodeLength));
+	document.cookie = "" + imcookieName + "=" + numC + "; path=/;";
+	all162100Imcode();
+
+})();
+
+
+-->
+</script>
+
+
+</body>
+</html>

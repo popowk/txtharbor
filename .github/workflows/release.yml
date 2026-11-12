@@ -1,0 +1,38 @@
+name: Publish TxtHarbor Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - VERSION
+      - tools/build_release.py
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Package checked-in source
+        run: python3 tools/build_release.py
+      - name: Publish release for VERSION (if it does not exist)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v$(cat VERSION)"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag exists; no changes made."
+            exit 0
+          fi
+          gh release create "$tag" dist/txtharbor-update.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "TxtHarbor $tag" \
+            --notes "TxtHarbor $tag code update. Back up your site before upgrading. Keep config.php and data/ intact."

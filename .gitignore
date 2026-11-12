@@ -1,0 +1,12 @@
+# Never commit real site credentials, visitor data, or logs.
+/config.php
+/data/*
+!/data/.gitkeep
+/__temp__/
+/inc/badword.php
+*.log
+*.zip
+/dist/
+/.DS_Store
+/.idea/
+/.vscode/
