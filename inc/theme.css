@@ -16,12 +16,17 @@
 /* Header theme menu, common to all pages. */
 #top .body.top-inner { gap: 17px; }
 #top .site-nav { margin-left: auto; }
-.theme-control { position: relative; flex: none; z-index: 20; }
+/* Keep the menu above page content, including Safari backdrop-filter stacking contexts. */
+#top { position: relative; z-index: 100; overflow: visible; }
+.theme-control { position: relative; display: inline-flex; align-items: stretch; flex: none; z-index: 101; }
 .app-page .theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--ink); background: var(--panel-2); font-size: 12px; font-weight: 650; line-height: 1.2; white-space: nowrap; }
 .app-page .theme-toggle:hover, .app-page .theme-toggle[aria-expanded="true"] { border-color: var(--cyan); color: var(--cyan-bright); }
+.app-page .theme-control .theme-toggle { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: 0; cursor: pointer; }
+.app-page .theme-menu-toggle { display: inline-flex; align-items: center; justify-content: center; min-width: 27px; padding: 0 7px; border: 1px solid var(--line-strong); border-top-right-radius: 10px; border-bottom-right-radius: 10px; background: var(--panel-2); color: var(--muted); font-size: 14px; cursor: pointer; }
+.app-page .theme-menu-toggle:hover, .app-page .theme-menu-toggle[aria-expanded="true"] { border-color: var(--cyan); color: var(--cyan-bright); background: var(--panel); }
 .theme-icon { width: 17px; font-size: 16px; line-height: 1; text-align: center; }
 .theme-chevron { color: var(--muted); font-size: 14px; margin-left: 2px; }
-.theme-menu { position: absolute; top: calc(100% + 8px); right: 0; width: 124px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--panel); box-shadow: 0 16px 38px rgba(3, 22, 45, .19); padding: 5px; }
+.theme-menu { position: absolute; top: calc(100% + 8px); right: 0; width: 124px; z-index: 110; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--panel); box-shadow: 0 16px 38px rgba(3, 22, 45, .19); padding: 5px; }
 .theme-menu[hidden] { display: none !important; }
 .app-page .theme-menu button { display: flex; width: 100%; align-items: center; gap: 11px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 10px; color: var(--ink); font-size: 12px; }
 .app-page .theme-menu button:hover, .app-page .theme-menu button.active { background: var(--panel-2); color: var(--cyan-bright); }
@@ -147,3 +152,7 @@
 
 /* Compact editor actions after removing duplicate helper copy. */
 .editor-toolbar { justify-content: flex-end; }
+
+/* Ensure the light-mode theme controls really use the light palette. */
+:root[data-theme="light"] .app-page .theme-toggle, :root[data-theme="light"] .app-page .theme-menu-toggle { background: #ffffff; color: #35536d; border-color: #d3e0eb; }
+:root[data-theme="light"] .app-page .theme-toggle:hover, :root[data-theme="light"] .app-page .theme-menu-toggle:hover { background: #e8f5fb; border-color: #78c2d6; color: #086b8c; }

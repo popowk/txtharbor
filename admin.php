@@ -49,10 +49,10 @@ if (confirm_power()) {
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,shrink-to-fit=no" />
 <meta name="applicable-device"content="pc,mobile" />
 <title><?php echo $web['sitename']; ?> - 管理</title>
-<script src="inc/theme.js?<?php echo @filemtime('inc/theme.js'); ?>"></script>
+<script src="inc/theme.js?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
 <link id="css" href="inc/style.css?<?php echo filemtime('inc/style.css'); ?>" rel="stylesheet" type="text/css">
 <link href="inc/modern.css?<?php echo filemtime('inc/modern.css'); ?>" rel="stylesheet" type="text/css">
-<link rel="stylesheet" href="inc/theme.css?<?php echo @filemtime('inc/theme.css'); ?>">
+<link rel="stylesheet" href="inc/theme.css?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
 <style type="text/css">
 <!--
 table#set {
@@ -72,7 +72,7 @@ table#set td.right {
 <body class="app-page admin-page">
 <header id="top">
   <div class="body top-inner"><a href="./" id="logo"><span class="brand-symbol">T<span>_</span></span><span class="brand-name"><?php echo htmlspecialchars($web['sitename'], ENT_QUOTES, 'UTF-8'); ?></span></a><nav class="site-nav"><a href="./">浏览内容</a><a href="write.php">新建留言</a><a href="index.php?admin_run=1">留言管理</a><a href="admin.php" class="active">管理设置</a><a href="update.php">版本更新</a><?php echo $text_admin_run_logout; unset($text_admin_run_logout); ?></nav><div class="theme-control">
-      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="选择显示主题" aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu"><span class="theme-icon" aria-hidden="true">◐</span><span id="theme-label">自动</span><span class="theme-chevron" aria-hidden="true">⌄</span></button>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="点击切换主题" title="点击切换主题"><span class="theme-icon" aria-hidden="true">◐</span><span id="theme-label">自动</span></button><button type="button" class="theme-menu-toggle" id="theme-menu-toggle" aria-label="选择主题模式" aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu" title="选择自动、浅色或深色模式"><span class="theme-chevron" aria-hidden="true">⌄</span></button>
       <div class="theme-menu" id="theme-menu" role="group" aria-label="显示主题" hidden>
         <button type="button" data-theme-choice="auto">◐ <span>自动</span></button>
         <button type="button" data-theme-choice="light">☀ <span>浅色</span></button>

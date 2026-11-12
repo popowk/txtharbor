@@ -74,7 +74,7 @@ $version = th_update_version();
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>版本更新 · TxtHarbor</title>
-<script src="inc/theme.js?<?php echo @filemtime('inc/theme.js'); ?>"></script>
+<script src="inc/theme.js?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
 <link rel="stylesheet" href="inc/style.css?<?php echo @filemtime('inc/style.css'); ?>">
 <link rel="stylesheet" href="inc/modern.css?<?php echo @filemtime('inc/modern.css'); ?>">
 <style>
@@ -103,11 +103,11 @@ $version = th_update_version();
 .update-links{display:flex;gap:18px;flex-wrap:wrap}
 @media(max-width:700px){.update-grid{grid-template-columns:1fr}.update-shell{padding:20px}.update-wrap{padding:0 13px 50px}}
 </style>
-<link rel="stylesheet" href="inc/theme.css?<?php echo @filemtime('inc/theme.css'); ?>">
+<link rel="stylesheet" href="inc/theme.css?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
 </head>
 <body class="app-page admin-page">
 <header id="top"><div class="body top-inner"><a href="./" id="logo"><span class="brand-symbol">T<span>_</span></span><span class="brand-name">TxtHarbor</span></a><nav class="site-nav"><a href="./">留言列表</a><a href="index.php?admin_run=1">留言管理</a><a href="admin.php">站点设置</a><a href="update.php" class="active">版本更新</a></nav><div class="theme-control">
-      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="选择显示主题" aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu"><span class="theme-icon" aria-hidden="true">◐</span><span id="theme-label">自动</span><span class="theme-chevron" aria-hidden="true">⌄</span></button>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="点击切换主题" title="点击切换主题"><span class="theme-icon" aria-hidden="true">◐</span><span id="theme-label">自动</span></button><button type="button" class="theme-menu-toggle" id="theme-menu-toggle" aria-label="选择主题模式" aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu" title="选择自动、浅色或深色模式"><span class="theme-chevron" aria-hidden="true">⌄</span></button>
       <div class="theme-menu" id="theme-menu" role="group" aria-label="显示主题" hidden>
         <button type="button" data-theme-choice="auto">◐ <span>自动</span></button>
         <button type="button" data-theme-choice="light">☀ <span>浅色</span></button>
