@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.4 */
+/* TxtHarbor-build:1.5.5 */
 /** TxtHarbor v1.5 entry extension. Old byte-indexed record data is read-only. */
 require_once __DIR__.'/content.php';
 const TH_META_PREFIX = "<?php exit; ?>\n";
@@ -170,13 +170,51 @@ function th_entries_scan($meta = null) {
 }
 function th_is_admin() { return defined('ADMIN_POWER') ? ADMIN_POWER : (function_exists('th_admin_authorized') && th_admin_authorized()); }
 function th_entry_expired($entry) {return $entry['expires_at'] > 0 && $entry['expires_at'] <= time();}
-function th_access_session() {
-    if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
-        ini_set('session.use_strict_mode','1');
-        ini_set('session.gc_maxlifetime','86400');
-        session_set_cookie_params(array('lifetime'=>0,'path'=>'/','secure'=>!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off','httponly'=>true,'samesite'=>'Lax'));
-        session_start();
+/** A site-specific PHP session prevents cross-app PHPSESSID collisions. When
+ * shared-host session.save_path is unwritable, use private system temporary storage.
+ * Never silently continue with a non-persistent session: that breaks CSRF and unlock. */
+function th_access_session_path() {
+    $root=realpath(dirname(__DIR__)) ?: dirname(__DIR__);
+    $folder=rtrim(sys_get_temp_dir(), '/\\').'/txtharbor-session-'.substr(hash('sha256',$root),0,20);
+    $publicRoot=isset($_SERVER['DOCUMENT_ROOT']) ? realpath($_SERVER['DOCUMENT_ROOT']) : false;
+    if ($publicRoot && ($folder===$publicRoot || strpos($folder,rtrim($publicRoot,'/\\').DIRECTORY_SEPARATOR)===0))
+        throw new RuntimeException('PHP 临时目录位于网站公开目录，拒绝存储访问凭据');
+    if (!is_dir($folder)) @mkdir($folder,0700,true);
+    if (is_dir($folder) && is_writable($folder)) {
+        // Existing directory permissions must not expose session files to other users.
+        $permissions=@fileperms($folder);
+        if (DIRECTORY_SEPARATOR !== '\\' && $permissions !== false && ($permissions & 0077) !== 0) @chmod($folder,0700);
+        $permissions=@fileperms($folder);
+        if (DIRECTORY_SEPARATOR === '\\' || ($permissions !== false && ($permissions & 0077) === 0)) return $folder;
     }
+    // Hosting providers sometimes prohibit PHP's system temporary directory.
+    // In that case the preconfigured private session path is still permitted.
+    $configured=session_save_path();
+    if (is_string($configured) && $configured !== '') {
+        $parts=explode(';',$configured); $path=end($parts); // PHP may prefix depth/mode
+        if (is_dir($path) && is_writable($path)) return $configured;
+    }
+    throw new RuntimeException('PHP Session 存储不可写，请检查 PHP 临时目录或 session.save_path');
+}
+function th_access_session() {
+    if (session_status()===PHP_SESSION_ACTIVE) return;
+    if (session_status()===PHP_SESSION_DISABLED) throw new RuntimeException('服务器已禁用 PHP Session');
+    if (headers_sent($file,$line)) throw new RuntimeException('响应已输出，无法建立会话：'.$file.':'.$line);
+    if (ini_get('session.save_handler')==='files') {
+        $store=th_access_session_path();
+        if (@session_save_path($store)===false) throw new RuntimeException('无法指定 PHP Session 存储位置');
+    }
+    session_name('THSESSID');
+    ini_set('session.use_strict_mode','1');
+    ini_set('session.use_only_cookies','1');
+    ini_set('session.gc_maxlifetime','86400');
+    $path=str_replace('\\','/',dirname($_SERVER['SCRIPT_NAME']??'/entry.php'));
+    $path=$path==='/' || $path==='.' ? '/' : rtrim($path,'/').'/';
+    session_set_cookie_params(array('lifetime'=>0,'path'=>$path,
+        'secure'=>!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off',
+        'httponly'=>true,'samesite'=>'Lax'));
+    if (@session_start()!==true || session_status()!==PHP_SESSION_ACTIVE)
+        throw new RuntimeException('PHP Session 无法启动或持久化，请检查服务器文件权限');
 }
 /** The browser holds only the opaque, HttpOnly PHP session cookie.
  * A short-lived share key stays server-side in its private session, never in permanent post data. */

@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.4 */
+/* TxtHarbor-build:1.5.5 */
 /** Single stable-link view and authorized edit/update entry point. */
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
@@ -13,6 +13,10 @@ require_once __DIR__.'/inc/entry_view.php';
 $web=text_v2_config_utf8($web);
 if ((int)$web['site_close']===1) {header('Location: 0.php');exit;}
 define('ADMIN_POWER',th_admin_authorized());
+try {th_access_session();} catch(Throwable $ex) {
+    error_log('TxtHarbor unlock session: '.$ex->getMessage());
+    http_response_code(503);exit('密码访问会话不可用：请管理员检查 PHP Session 存储权限。');
+}
 try {$id=isset($_GET['id']) && is_string($_GET['id'])?$_GET['id']:''; $entry=th_entry_find($id);}catch(Throwable $ex){http_response_code(503);exit('留言数据暂不可用，请管理员检查权限元数据。');}
 if (!$entry || (!ADMIN_POWER && th_entry_expired($entry))) {http_response_code(404);exit('留言不存在或已过期');}
 $message='';$error='';

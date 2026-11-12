@@ -1,12 +1,19 @@
 # TxtHarbor · 文本港湾
 
+## v1.5.5 管理员与访客密码认证修复
+
+- 管理员会话文件如因旧权限或共享主机限制无法写入 `data/`，可退回到系统**私有 PHP 临时目录**，登录和退出仍使用独立浏览器令牌；新版登录成功后增加浏览器 Cookie 自检提示。
+- 受保护留言改用单独 `THSESSID` 会话 Cookie，隔离同一域名其他 PHP 程序的 `PHPSESSID`。Session 自动选择私有临时存储，检测失败明确提示，不再假装密码错误。
+- 修复手动输入正确密码后页面重新锁定的会话持久化问题；锁定计数及服务端权限校验保持不变。
+- 原有留言、密码哈希和私密分享设置不改动。升级后旧浏览器的临时解锁状态可能需要重新输入一次密码。
+
 ## v1.5.4 会话与详情页修复
 
 - 密码详情页重新适配浅色、深色和移动端，输入框不再被旧版通用 label 样式覆盖。
 - 发布者的浏览器使用 HttpOnly 的 PHP 会话 Cookie 识别临时分享凭据，服务器会话保存最多 24 小时；复制带密码链接无需重复输入密码。密码不会放入 Cookie 或永久留言元数据中。
 - 在其他浏览器或会话过期后，仍需输入一次访问密码；分享链接中的 #key 依旧会自动填入。
 - 管理员改为每个浏览器独立的哈希令牌文件 `data/admin_sessions.php`，彼此不挤下线；退出只撤销本浏览器，旧版 manage Cookie 不再授予管理权限。升级后需要重新登录一次。
-- 备份需包含 `data/admin_sessions.php`（管理会话）与 `data/entry_meta.php`（留言保护元数据）。
+- 备份应包含 `data/admin_sessions.php`（如存在）与 `data/entry_meta.php`（留言保护元数据）。备用管理员认证和访客会话可能存放在 PHP 系统临时目录，不包含在网站代码更新包中。
 
 
 
@@ -132,6 +139,7 @@ python3 tools/build_release.py
 php tests/text_regression.php
 php tests/update_regression.php
 php tests/entry_regression.php
+php tests/auth_regression.php
 node tests/ui_regression.js
 ```
 

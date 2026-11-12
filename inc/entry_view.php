@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.4 */
+/* TxtHarbor-build:1.5.5 */
 require_once __DIR__.'/entries.php';
 require_once __DIR__.'/markdown.php';
 function th_entry_body_html($entry, $show_admin=false) {

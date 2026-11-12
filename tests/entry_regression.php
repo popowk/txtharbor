@@ -10,6 +10,7 @@ register_shutdown_function(function()use($base){
 });
 define('INDEX_WIDTH',15);
 require $base.'/inc/entry_view.php';
+th_access_session(); // Web requests start the session before HTML output; mirror that here.
 function ok($value,$desc){if(!$value){fwrite(STDERR,"FAIL: $desc\n");exit(1);}echo "PASS: $desc\n";}
 $initial='<?php die(); ?>';
 file_put_contents($base.'/data/file.php',$initial);

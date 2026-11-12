@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.4 */
+/* TxtHarbor-build:1.5.5 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -29,7 +29,10 @@ if (isset($_GET['id']) && is_string($_GET['id']) && preg_match('/^[a-f0-9]{24}$/
 }
 try { $th_meta = th_metadata_read(); }
 catch (Throwable $e) { http_response_code(503); exit('留言访问设置不可用，已安全暂停显示。请管理员检查 data/entry_meta.php。'); }
-th_access_session();
+try { th_access_session(); } catch (Throwable $error) {
+    error_log('TxtHarbor visitor session: '.$error->getMessage());
+    http_response_code(503);exit('浏览器会话存储不可用，请管理员检查 PHP Session 配置。');
+}
 if ($web['site_close'] === 1) {
 	header('Location: 0.php');
 	die();
