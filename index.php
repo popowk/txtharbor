@@ -1,4 +1,5 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -17,7 +18,9 @@ require_once('inc/entry_view.php');
 require_once('inc/admin_login.php');
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
-header('Cache-Control: no-store, private');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 define('ADMIN_POWER', confirm_power());
 if (isset($_GET['id']) && is_string($_GET['id']) && preg_match('/^[a-f0-9]{24}$/D', $_GET['id'])) {
     header('Location: entry.php?id='.$_GET['id'], true, 302);
@@ -175,6 +178,7 @@ $text_admin_run_css =
 $text_admin_run_hand = 
 $text_admin_exit = 
 $text_admin_run_login = '';
+$text_admin_run_reply = 'return false;';
 $text_admin_run_check = 'get_list_content_guest';
 
 
@@ -349,13 +353,13 @@ if (isset($_GET['admin_run']) && $_GET['admin_run'] == 1) {
 <meta name="applicable-device" content="pc,mobile" />
 <meta name="color-scheme" content="light dark" />
 <title><?php echo $web['sitename']; ?></title>
-<script src="inc/theme.js?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
+<script src="inc/theme.js?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
 <link id="css" href="inc/style.css?<?php echo filemtime('inc/style.css'); ?>" rel="stylesheet" type="text/css">
 <link href="inc/modern.css?<?php echo filemtime('inc/modern.css'); ?>" rel="stylesheet" type="text/css">
 <link href="inc/entries.css?<?php echo @filemtime('inc/entries.css'); ?>" rel="stylesheet" type="text/css">
-<link rel="stylesheet" href="inc/theme.css?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
+<link rel="stylesheet" href="inc/theme.css?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
 <?php echo $text_admin_run_css; unset($text_admin_run_css); ?>
-<script language="javascript" type="text/javascript" src="inc/main.js?<?php echo filemtime('inc/main.js'); ?>"></script>
+<script language="javascript" type="text/javascript" src="inc/main.js?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo filemtime('inc/main.js'); ?>"></script>
 <script language="javascript" type="text/javascript">
 <!--
 main.allChoose = function(o, v1, v2) {

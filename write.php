@@ -1,9 +1,13 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 /*
  * 162100 留言本衍生界面，原项目版权信息保留。
  * 作者：162100.com；仅供学习交流，禁用于商业目的。
  */
 header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 require_once 'config.php';
 require_once 'inc/entries.php';
 $web = text_v2_config_utf8($web);
@@ -17,11 +21,11 @@ $category = isset($_GET['subarea']) && is_numeric($_GET['subarea']) && isset($we
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
 <meta name="color-scheme" content="light dark" />
 <title><?php echo htmlspecialchars($web['sitename'], ENT_QUOTES, 'UTF-8'); ?> · 新建留言</title>
-<script src="inc/theme.js?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
+<script src="inc/theme.js?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
 <link rel="stylesheet" href="inc/style.css?<?php echo filemtime('inc/style.css'); ?>" />
 <link rel="stylesheet" href="inc/modern.css?<?php echo filemtime('inc/modern.css'); ?>" /><link rel="stylesheet" href="inc/entries.css?<?php echo @filemtime('inc/entries.css'); ?>" />
-<link rel="stylesheet" href="inc/theme.css?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
-<script src="inc/main.js?<?php echo filemtime('inc/main.js'); ?>"></script>
+<link rel="stylesheet" href="inc/theme.css?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
+<script src="inc/main.js?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo filemtime('inc/main.js'); ?>"></script>
 <script>
 main.minWordCount = 1;
 main.maxSubjectWordCount = <?php echo SUBJ_SIZE; ?>;

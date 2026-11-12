@@ -1,4 +1,5 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 require_once __DIR__.'/entries.php';
 require_once __DIR__.'/markdown.php';
 function th_entry_body_html($entry, $show_admin=false) {
@@ -15,12 +16,12 @@ function th_entry_body_html($entry, $show_admin=false) {
 function th_entry_controls($entry, $admin=false) {
     $url=th_entry_share($entry);
     $locked=($entry['password_hash'] !== '');
-    $html='<button type="button" class="entry-action" data-share-url="'.text_v2_html($url).'"'
+    $html='<a class="entry-action" href="'.text_v2_html($url).'">查看留言</a><button type="button" class="entry-action" data-share-url="'.text_v2_html($url).'"'
         .' data-share-protected="'.($locked?'1':'0').'" data-share-csrf="'.text_v2_html(th_access_csrf()).'"'
         .' onclick="main.shareEntry(this)">复制分享链接</button>';
     if (th_entry_public_content($entry) || $admin) {
         $html.='<button type="button" class="copy-btn" onclick="main.copyEntry(\'raw_'.$entry['id'].'\',this)">复制原文 / MD</button>';
     }
-    if ($admin) $html.='<a class="entry-action" href="'.text_v2_html($url).'&amp;edit=1">编辑设置</a>';
+    if ($admin) $html.='<a class="entry-action" href="'.text_v2_html($url).'&amp;edit=1">编辑 / 置顶</a>';
     return $html;
 }

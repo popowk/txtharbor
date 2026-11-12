@@ -1,4 +1,5 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 /** Server-side legacy administrator cookie handling (no iframe/JavaScript cookie writes). */
 function th_admin_cookie_path() {
     $dir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/run.php'));
@@ -38,16 +39,39 @@ function th_admin_handle_request($web) {
         exit;
     }
     if (($_GET['act'] ?? '') === 'logout') {
-        th_admin_set_cookie('', false, true);
-        // Clear any previous pathless cookie from the old iframe implementation.
-        if (th_admin_cookie_path() !== '/') {
-            setcookie('manage', '', array('expires'=>time()-3600,'path'=>'/','httponly'=>true,'samesite'=>'Lax'));
+        header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        $file = dirname(__DIR__).'/data/admin_key.php';
+        $revoked = !is_file($file);
+        if (!$revoked) {
+            $fp = @fopen($file, 'c+b');
+            if ($fp && @flock($fp, LOCK_EX)) {
+                $text='<?php die(); ?>';
+                $revoked = @ftruncate($fp, 0) && @rewind($fp)
+                    && @fwrite($fp, $text) === strlen($text) && @fflush($fp);
+                @flock($fp, LOCK_UN);
+            }
+            if ($fp) @fclose($fp);
         }
-        // Revoke the single legacy server-side token as well, if writable.
-        $file=dirname(__DIR__).'/data/admin_key.php';
-        if (is_file($file)) @file_put_contents($file, '<?php die(); ?>', LOCK_EX);
-        header('Cache-Control: no-store, private');
-        header('Location: ./', true, 302);
+        // Expire both current and old cookie paths. The revoked server token
+        // makes even a surviving obsolete cookie invalid.
+        $paths = array_unique(array('/', th_admin_cookie_path(),
+            rtrim(th_admin_cookie_path(), '/')));
+        foreach ($paths as $path) {
+            if (!$path) continue;
+            setcookie('manage', '', array('expires'=>time()-3600, 'path'=>$path,
+                'secure'=>!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off',
+                'httponly'=>true,'samesite'=>'Lax'));
+        }
+        unset($_COOKIE['manage']);
+        if (!$revoked) {
+            error_log('TxtHarbor: failed to revoke the administrator token on logout');
+            http_response_code(503);
+            exit('管理员令牌无法撤销，请检查 data/admin_key.php 写入权限。');
+        }
+        clearstatcache(true, $file);
+        header('Location: ./?logged_out=1', true, 303);
         exit;
     }
 }

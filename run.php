@@ -1,4 +1,5 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -14,6 +15,7 @@
 $th_json_post = isset($_POST['act'], $_POST['ajax']) &&
     $_POST['act'] === 'write' && $_POST['ajax'] === '1';
 $GLOBALS['th_json_answer_sent'] = false;
+$GLOBALS['th_publish_stage'] = 'initial';
 if ($th_json_post) {
     ob_start();
     register_shutdown_function(function () {
@@ -21,22 +23,44 @@ if ($th_json_post) {
         $err = error_get_last();
         if (!$err || !in_array($err['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR), true)) return;
         $ref = substr(hash('sha256', $err['file'].':'.$err['line'].':'.microtime(true)), 0, 10);
-        error_log('TxtHarbor publish failed ['.$ref.'] '.$err['message'].' at '.$err['file'].':'.$err['line']);
+        error_log('TxtHarbor publish failed ['.$ref.'] stage='.$GLOBALS['th_publish_stage'].' '.$err['message'].' at '.$err['file'].':'.$err['line']);
         if (ob_get_level() > 0) @ob_end_clean();
         if (headers_sent()) return;
         http_response_code(500);
         header('Content-Type: application/json; charset=UTF-8');
         header('Cache-Control: no-store, private');
         echo json_encode(array('ok'=>false,
-          'message'=>'服务器运行错误（编号 '.$ref.'）。提交状态未确认，请先查看留言列表，避免重复发布。'),
+          'message'=>'服务器运行错误（编号 '.$ref.'，阶段 '.$GLOBALS['th_publish_stage'].'）。请先查看留言列表避免重复发布，管理员可在 PHP 日志按编号定位。'),
           JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     });
 }
 header("content-type: text/html; charset=UTF-8");
+// A half-installed release must not become a PHP fatal during publish.
+if ($th_json_post) {
+    foreach (array('config.php','inc/entries.php','inc/admin_auth.php','inc/github_update.php') as $required) {
+        if (!is_file(__DIR__.'/'.$required)) {
+            if (ob_get_level()>0) @ob_end_clean();
+            http_response_code(503);
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(array('ok'=>false,'message'=>'程序文件缺失：'.$required.'。请重新安装完整代码更新包。'),JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+}
 require_once('config.php');
 require_once('inc/entries.php');
 require_once('inc/admin_auth.php');
+require_once('inc/github_update.php');
 $web = text_v2_config_utf8($web);
+if (!function_exists('th_admin_handle_request')) {
+    if ($th_json_post) {
+        if (ob_get_level()>0) @ob_end_clean();
+        http_response_code(503); header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode(array('ok'=>false,'message'=>'管理员认证文件尚未同步，请安装完整升级包。'),JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    http_response_code(503); exit('站点认证组件未同步，请管理员修复安装。');
+}
 th_admin_handle_request($web);
 header('Content-Type: text/html; charset=UTF-8');
 
@@ -381,6 +405,13 @@ define('ADMIN_POWER', confirm_power());
 
 //填写
 if (isset($_POST['act']) && $_POST['act'] === 'write') :
+    $GLOBALS['th_publish_stage'] = 'integrity';
+    if (!function_exists('th_runtime_health')) write_finish(false, '更新组件版本不一致，请重新安装完整升级包。', '', 503);
+    $runtime = th_runtime_health();
+    if (!$runtime['ok']) {
+        write_finish(false, '网站程序文件未同步（'.implode('、', array_slice($runtime['issues'],0,4)).'），请到版本更新中心重新安装当前版本。', '', 503);
+    }
+    $GLOBALS['th_publish_stage'] = 'validation';
 
     // A valid admin session or DAY_SIZE=0 bypasses daily limits entirely.
     // Do not access $today/$fd in those cases (PHP 8 throws ValueError).
@@ -460,6 +491,7 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
     $password_digest = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : '';
     if ($password !== '' && (!is_string($password_digest) || $password_digest === ''))
         write_finish(false,'服务器无法安全生成密码哈希，留言未发布','',500);
+    $GLOBALS['th_publish_stage'] = 'metadata-preflight';
     // Preflight the new metadata store BEFORE touching legacy message bytes.
     // Older sites may allow editing existing data files but forbid creating
     // entry_meta.php or lock files in the data/ directory.
@@ -474,7 +506,11 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
 	$strput = time().''.($web['ip_open'] !== 0 ? $ip : '').'|'.$posttype.'|'.text_v2_pack($subj, $text).'|'.($web['review'] == 1 && !ADMIN_POWER ? '|' : ' ').'';
 	$strlen = strlen($strput);
 	
-	$loc = find_space($strlen);
+    $GLOBALS['th_publish_stage'] = 'legacy-slot';
+	try { $loc = find_space($strlen); }
+    catch (Throwable $error) {
+        write_finish(false, '数据库空间索引读取失败，留言未发布。请检查 data/space.txt。', '', 503);
+    }
 
 	if ($loc > INT_MAX) {
         write_finish(false, '数据文件容量达到系统上限', '', 507);
@@ -484,12 +520,14 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
         write_finish(false, '数据库索引容量达到系统上限', '', 507);
 	}
 
+    $GLOBALS['th_publish_stage'] = 'record-write';
 	//处理数据文件
 	if (!file_seek_put_contents('data/file.php', $strput, $loc)) {
         write_finish(false, '无法保存留言，服务器数据库目录可能没有写权限', '', 500);
 	}
     $new_id = th_entry_id($loc, $strlen, explode('|', $strput));
     unset($text, $strput);
+    $GLOBALS['th_publish_stage'] = 'metadata-commit';
     try {
         // The metadata sidecar is an explicit part of this transaction: never expose a
         // password-protected or expiring entry before its access restrictions exist.
@@ -503,11 +541,13 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
         write_finish(false, '留言未发布：权限设置保存失败（'.$error->getMessage().'）', '', 503);
     }
 
+    $GLOBALS['th_publish_stage'] = 'index-commit';
 	//处理索引文件
     if (@file_put_contents('data/index.txt', str_pad($loc.'|'.$strlen, INDEX_WIDTH, ' '), LOCK_EX | FILE_APPEND) === false) {
         write_finish(false, '无法保存留言，服务器数据库目录可能没有写权限', '', 500);
 	}
 	
+    $GLOBALS['th_publish_stage'] = 'committed';
     // The index append is the durable commit. Compaction is best effort: an
     // exception here must not turn a successful post into a misleading 500.
     try { comb_space(); }

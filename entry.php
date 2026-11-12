@@ -1,7 +1,10 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 /** Single stable-link view and authorized edit/update entry point. */
 header('Content-Type: text/html; charset=UTF-8');
-header('Cache-Control: no-store, private');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 require __DIR__.'/config.php';

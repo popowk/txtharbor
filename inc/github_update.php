@@ -1,4 +1,5 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 /* TxtHarbor GitHub release updater. Keep the original software copyright notices. */
 
 function th_update_defaults() {
@@ -76,6 +77,26 @@ function th_update_save_settings($settings, &$error) {
 function th_update_version() {
     $file = dirname(__DIR__) . '/VERSION';
     return is_file($file) ? trim((string)@file_get_contents($file)) : '0.0.0';
+}
+/** Check all required running components, not just the VERSION text file.
+ * Does not touch passwords, database bytes or user data. */
+function th_runtime_health() {
+    $version = th_update_version();
+    $components = array('0.php','admin.php','index.php','run.php','write.php',
+        'update.php','entry.php','inc/admin_auth.php','inc/admin_login.php',
+        'inc/entries.php','inc/entry_view.php','inc/main.js',
+        'inc/entries.css','inc/theme.css','inc/github_update.php');
+    $issues = array();
+    if (!preg_match('/^\d+\.\d+\.\d+$/D',$version)) $issues[]='VERSION';
+    foreach ($components as $name) {
+        $path = dirname(__DIR__).'/'.$name;
+        if (!is_file($path)) { $issues[]=$name.' 缺失'; continue; }
+        $head=@file_get_contents($path,false,null,0,512);
+        if (!is_string($head) || strpos($head,'TxtHarbor-build:'.$version)===false)
+            $issues[]=$name.' 版本不一致';
+    }
+    return array('ok'=>count($issues)===0,'version'=>$version,
+        'checked'=>count($components),'issues'=>$issues);
 }
 function th_update_token() {
     $cookie = isset($_COOKIE['manage']) ? (string)$_COOKIE['manage'] : '';
@@ -172,11 +193,14 @@ function th_update_release($settings, &$error, $preferred = '') {
         'newer' => version_compare($version, th_update_version(), '>'),
         'release_url' => 'https://github.com/' . $repo['owner'] . '/' . $repo['repo'] . '/releases/tag/' . rawurlencode($release['tag_name']));
 }
-function th_update_install($settings, &$error) {
+function th_update_install($settings, &$error, $repair = false) {
     if (!class_exists('ZipArchive')) { $error = '当前 PHP 未启用 ZipArchive，无法在线安装；请手动下载代码包覆盖。'; return false; }
     $release = th_update_release($settings, $error);
     if (!$release) return false;
-    if (!$release['newer']) { $error = '当前已是最新版本。'; return false; }
+    $relation = version_compare($release['version'], th_update_version());
+    if ($relation < 0 || ($relation === 0 && !$repair)) {
+        $error = '当前已是最新版本。如怀疑文件更新不完整，请使用修复安装。'; return false;
+    }
     if (!$release['asset'] || empty($release['asset']['digest']) ||
         !preg_match('/^sha256:([0-9a-f]{64})$/i', $release['asset']['digest'], $m)) {
         $error = 'Release 未提供升级包的 SHA-256 校验值。出于安全考虑，已禁用在线安装，请手动下载。'; return false;
@@ -219,6 +243,21 @@ function th_update_install($settings, &$error) {
         !isset($files['update.php']) || !isset($files['inc/github_update.php'])) {
         $error = '升级包版本号不匹配或缺少必要文件。'; return false;
     }
+    // Guard against release assets that mix file versions. A repair install
+    // must never confirm success from VERSION alone.
+    if (version_compare($release['version'],'1.5.3','>=')) {
+        $required = array('0.php','admin.php','index.php','run.php','write.php',
+            'update.php','entry.php','inc/admin_auth.php','inc/admin_login.php',
+            'inc/entries.php','inc/entry_view.php','inc/main.js',
+            'inc/entries.css','inc/theme.css','inc/github_update.php');
+        foreach ($required as $component) {
+            if (!isset($files[$component]) ||
+                strpos(substr($files[$component],0,512),'TxtHarbor-build:'.$release['version']) === false) {
+                $error = '升级包缺少对应版本的核心文件：'.$component;
+                return false;
+            }
+        }
+    }
     // Backups are stored OUTSIDE the site document root; .htaccess alone does
     // not protect downloadable archives on hosts using Nginx.
     $backup_dir = rtrim(sys_get_temp_dir(), '/\\') . '/txtharbor-backup-' .
@@ -248,11 +287,19 @@ function th_update_install($settings, &$error) {
     }
     if (!$out->close()) { @unlink($backup); $error = '备份 ZIP 写入失败。'; return false; }
     $completed = array();
-    foreach ($files as $name => $value) {
+    // Confirm VERSION only after every other component has been installed.
+    $names = array_keys($files);
+    $names = array_values(array_diff($names, array('VERSION')));
+    if (isset($files['VERSION'])) $names[]='VERSION';
+    foreach ($names as $name) {
         $path = $base . '/' . $name;
-        if (@file_put_contents($path, $value, LOCK_EX) !== strlen($value)) {
-            $error = '更新 ' . $name . ' 失败，正在还原已替换文件。'; break;
+        $value = $files[$name];
+        $written=@file_put_contents($path, $value, LOCK_EX);
+        if ($written !== strlen($value) || !is_file($path) ||
+            !hash_equals(hash('sha256',$value),(string)@hash_file('sha256',$path))) {
+            $error = '更新 ' . $name . ' 失败或文件校验不符，正在还原已替换文件。'; break;
         }
+        if (function_exists('opcache_invalidate')) @opcache_invalidate($path, true);
         $completed[] = $name;
     }
     if ($error) {
@@ -262,6 +309,7 @@ function th_update_install($settings, &$error) {
             if ($existing[$name] === null) @unlink($path);
             else @file_put_contents($path, $existing[$name], LOCK_EX);
         }
+        if (function_exists('opcache_reset')) @opcache_reset();
         return false;
     }
     if (function_exists('opcache_reset')) @opcache_reset();

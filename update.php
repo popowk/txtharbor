@@ -1,4 +1,5 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 /*
 * TxtHarbor GitHub updater, based on the 162100 message board.
 * Original copyright and noncommercial restriction preserved in original files.
@@ -8,7 +9,9 @@ require_once __DIR__ . '/inc/content.php';
 require_once __DIR__ . '/inc/github_update.php';
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
-header('Cache-Control: no-store, private');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 if (!confirm_power()) {
     http_response_code(403);
     echo '<!doctype html><html lang="zh"><meta charset="utf-8"><title>请先登录管理后台</title><body><p>请先从 <a href="admin.php">管理设置</a> 登录后再进入更新中心。</p></body></html>';
@@ -57,8 +60,8 @@ if ($has_post) {
             $release = th_update_release($settings, $error);
             if ($release) $success = $release['newer'] ? '发现可用的新版本。' : '当前已是最新版本。';
             elseif (strpos($error, '404') !== false) $error .= '（该仓库可能尚未发布正式 Release。）';
-        } elseif ($action === 'install') {
-            $result = th_update_install($settings, $error);
+        } elseif ($action === 'install' || $action === 'repair') {
+            $result = th_update_install($settings, $error, $action === 'repair');
             if ($result) $success = '更新成功！已安装 v'.$result['version'].'，更新 '.(int)$result['files'].' 个代码文件；旧代码已备份于服务器的非公开临时目录。';
         } else $error = '不支持的管理操作。';
     }
@@ -66,6 +69,7 @@ if ($has_post) {
 $project = th_update_repo($settings['project_url']);
 $mirror = th_update_proxy_repo($settings['proxy_project_url'], $project);
 $version = th_update_version();
+$runtime = th_runtime_health();
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -74,7 +78,7 @@ $version = th_update_version();
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>版本更新 · TxtHarbor</title>
-<script src="inc/theme.js?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
+<script src="inc/theme.js?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
 <link rel="stylesheet" href="inc/style.css?<?php echo @filemtime('inc/style.css'); ?>">
 <link rel="stylesheet" href="inc/modern.css?<?php echo @filemtime('inc/modern.css'); ?>">
 <style>
@@ -103,7 +107,7 @@ $version = th_update_version();
 .update-links{display:flex;gap:18px;flex-wrap:wrap}
 @media(max-width:700px){.update-grid{grid-template-columns:1fr}.update-shell{padding:20px}.update-wrap{padding:0 13px 50px}}
 </style>
-<link rel="stylesheet" href="inc/theme.css?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
+<link rel="stylesheet" href="inc/theme.css?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
 </head>
 <body class="app-page admin-page">
 <header id="top"><div class="body top-inner"><a href="./" id="logo"><span class="brand-symbol">T<span>_</span></span><span class="brand-name">TxtHarbor</span></a><nav class="site-nav"><a href="./">留言列表</a><a href="index.php?admin_run=1">留言管理</a><a href="admin.php">站点设置</a><a href="update.php" class="active">版本更新</a><a href="run.php?act=logout">退出管理员</a></nav><div class="theme-control">
@@ -123,11 +127,16 @@ $version = th_update_version();
 <section class="update-shell">
 
 <h2>当前版本 <span class="version-number">v<?php echo th_h($version); ?></span></h2>
+<?php if ($runtime['ok']): ?>
+<div class="update-notice" role="status">运行文件一致性正常（<?php echo (int)$runtime['checked']; ?> 项核心组件）</div>
+<?php else: ?>
+<div class="update-notice error" role="alert">检测到程序文件未同步：<?php echo th_h(implode('、',array_slice($runtime['issues'],0,7))); ?>。请使用下方修复安装，或手动覆盖完整更新包。</div>
+<?php endif; ?>
 <p>检查 GitHub 正式发布的最新版本。</p>
 <form method="post" class="update-actions"><input type="hidden" name="csrf" value="<?php echo th_h(th_update_token()); ?>"><button class="update-btn" type="submit" name="action" value="check">检查新版本</button><button class="update-btn secondary" type="submit" name="action" value="test_direct">测试 GitHub</button><button class="update-btn secondary" type="submit" name="action" value="test_proxy">测试国内代理</button></form>
 <?php if ($release): ?><div class="update-meta" style="margin-top:16px">最新 Release：<b>v<?php echo th_h($release['version']); ?></b><br>升级包：<?php echo $release['asset'] ? '已找到' : '未上传'; ?></div>
 <div class="update-links" style="margin-top:10px"><a class="update-link" target="_blank" rel="noopener noreferrer" href="<?php echo th_h($release['release_url']); ?>">查看 Release</a><a class="update-link" target="_blank" rel="noopener noreferrer" href="<?php echo th_h($release['url']); ?>">直连下载</a><?php if ($release['proxy_url']): ?><a class="update-link" target="_blank" rel="noopener noreferrer" href="<?php echo th_h($release['proxy_url']); ?>">代理下载</a><?php endif; ?></div>
-<?php if ($release['newer'] && $release['asset']): ?><form method="post" class="update-actions" style="margin-top:20px" onsubmit="return confirm('确认安装新版本？会备份现有代码，不会覆盖 data 或 config.php。建议先单独备份整个站点。');"><input type="hidden" name="csrf" value="<?php echo th_h(th_update_token()); ?>"><button class="update-btn danger" type="submit" name="action" value="install">校验并在线安装更新</button></form><?php endif; ?><?php endif; ?>
+<?php if (($release['newer'] || (!$runtime['ok'] && $release['version']===$version)) && $release['asset']): ?><form method="post" class="update-actions" style="margin-top:20px" onsubmit="return confirm('确认安装新版本？会备份现有代码，不会覆盖 data 或 config.php。建议先单独备份整个站点。');"><input type="hidden" name="csrf" value="<?php echo th_h(th_update_token()); ?>"><button class="update-btn danger" type="submit" name="action" value="<?php echo $release['newer']?'install':'repair'; ?>"><?php echo $release['newer']?'校验并在线安装更新':'重新安装当前版本（修复文件）'; ?></button></form><?php endif; ?><?php endif; ?>
 </section>
 <section class="update-shell">
 <h2>项目地址</h2>

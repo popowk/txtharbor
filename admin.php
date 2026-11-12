@@ -1,4 +1,5 @@
 <?php
+/* TxtHarbor-build:1.5.3 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -12,10 +13,14 @@ header("content-type: text/html; charset=UTF-8");
 require_once('config.php');
 require_once 'inc/content.php';
 require_once 'inc/admin_login.php';
+require_once 'inc/github_update.php';
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
-if (!isset($web['cache']) || $web['cache'] == 0) {
+if (false) { // Legacy cache switch disabled: authenticated HTML must never be cached.
 
   //ini_set("soap.wsdl_cache_enabled", 0);
   ini_set("opcache.revalidate_freq", 0);
@@ -43,10 +48,10 @@ if (confirm_power()) {
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,shrink-to-fit=no" />
 <meta name="applicable-device"content="pc,mobile" />
 <title><?php echo $web['sitename']; ?> - 管理</title>
-<script src="inc/theme.js?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
+<script src="inc/theme.js?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo @filemtime('inc/theme.js'); ?>"></script>
 <link id="css" href="inc/style.css?<?php echo filemtime('inc/style.css'); ?>" rel="stylesheet" type="text/css">
 <link href="inc/modern.css?<?php echo filemtime('inc/modern.css'); ?>" rel="stylesheet" type="text/css">
-<link rel="stylesheet" href="inc/theme.css?v=1.4.1&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
+<link rel="stylesheet" href="inc/theme.css?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo @filemtime('inc/theme.css'); ?>">
 <style type="text/css">
 <!--
 table#set {
@@ -61,7 +66,7 @@ table#set td.right {
 }
 -->
 </style>
-<script language="javascript" type="text/javascript" src="inc/main.js?<?php echo filemtime('inc/main.js'); ?>"></script>
+<script language="javascript" type="text/javascript" src="inc/main.js?v=<?php echo rawurlencode(trim((string)@file_get_contents(__DIR__.'/VERSION'))); ?>&amp;t=<?php echo filemtime('inc/main.js'); ?>"></script>
 </head>
 <body class="app-page admin-page">
 <header id="top">
@@ -87,14 +92,13 @@ table#set td.right {
       <table width="100%" border="0" cellspacing="0" cellpadding="0" id="set">
         <tr>
           <td width="150" class="right">程序版本：</td>
-          <td>TxtHarbor v<?php echo htmlspecialchars(trim((string)@file_get_contents('VERSION')), ENT_QUOTES, 'UTF-8'); ?> · <a href="update.php">进入 GitHub 更新中心</a></td>
+          <td>TxtHarbor v<?php echo htmlspecialchars(th_update_version(), ENT_QUOTES, 'UTF-8'); ?> · <?php $health = th_runtime_health(); echo $health['ok'] ? '运行文件正常' : '<strong style="color:#ff9da9">文件版本不一致，请修复更新</strong>'; ?> · <a href="update.php">更新中心 / 文件修复</a></td>
         </tr>
         <tr>
-          <td width="150" class="right">一项争取性设置：</td>
+          <td width="150" class="right">后台缓存：</td>
           <td>
-            <label class="redword">
-              <input type="checkbox" class="checkbox" name="cache" value="0"<?php echo $web['cache']!=1?' checked="checked"':''; ?> />
-              <b>设置即时生效。</b>服务器环境千差万别，比如一些弱主机、启用了CDN的主机等，提交更改却不马上生效。如果这样情况，请点选开启这个选项试试</label>
+            <label><input type="checkbox" class="checkbox" name="cache" value="0"<?php echo $web['cache']!=1?' checked="checked"':''; ?> /> 页面设置优先实时显示</label>
+            <small style="display:block;color:var(--muted);padding:5px 2px">管理员页面始终禁用缓存；如果 CDN 还显示旧版，请在更新中心检查运行文件。</small>
           </td>
         </tr>
         <tr>

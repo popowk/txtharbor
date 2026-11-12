@@ -1,3 +1,4 @@
+/* TxtHarbor-build:1.5.3 */
 /* TxtHarbor v1.5: raw Markdown preservation, share/settings, password cards. */
 .app-page .entry-actions,.app-page .entry-buttons{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .app-page .entry-action{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border:1px solid var(--line-strong);border-radius:9px;color:var(--cyan-bright);background:var(--panel-2);font-size:12px;font-weight:600;text-decoration:none}
@@ -56,3 +57,35 @@
 .app-page .password-tools .tool-button:hover{border-color:var(--cyan)}
 .entry-publish-options label small{color:var(--muted);font-weight:400;line-height:1.4}
 @media(max-width:460px){.password-tools{flex-wrap:wrap}.password-tools .modern-input{flex-basis:100%}}
+
+/* v1.5.3: isolated share-setting controls. Legacy style.css gives every
+   <label> an opaque light background and overrides the HTML hidden attribute. */
+.app-page .entry-publish-options .entry-options-grid > label,
+.app-page .entry-publish-options > label:not(.field-title),
+.app-page .entry-settings > label:not(.entry-check) {
+  display:flex;flex-direction:column;align-items:stretch;gap:11px;
+  min-width:0;box-sizing:border-box;padding:16px 18px;
+  margin:0;background:var(--panel-2);color:var(--ink);
+  border:1px solid var(--line-strong);border-radius:13px;
+  font-size:13px;font-weight:650;line-height:1.5;cursor:default;
+}
+.app-page .entry-publish-options label[hidden],
+.app-page .entry-settings label[hidden] {display:none!important;}
+.app-page .entry-publish-options .field-title > label {
+  display:block;background:transparent;padding:0;border:0;border-radius:0;
+  color:var(--ink);font-weight:700;line-height:1.5;
+}
+.app-page .entry-publish-options .entry-options-grid {align-items:stretch;gap:14px;}
+.app-page .entry-publish-options .entry-options-grid > label > select,
+.app-page .entry-publish-options .entry-options-grid > label > input,
+.app-page .entry-publish-options > label > input {width:100%;min-width:0;box-sizing:border-box;}
+.app-page .entry-publish-options .password-tools {min-width:0;}
+.app-page .entry-publish-options .entry-options-grid > label:focus-within,
+.app-page .entry-publish-options > label:focus-within {border-color:var(--cyan);}
+:root[data-theme="light"] .app-page .entry-publish-options .entry-options-grid > label,
+:root[data-theme="light"] .app-page .entry-publish-options > label:not(.field-title),
+:root[data-theme="light"] .app-page .entry-settings > label:not(.entry-check) {
+  background:#f7fafc;color:#263f57;border-color:#d8e4ee;
+}
+:root[data-theme="light"] .app-page .entry-publish-options .field-title > label {background:transparent;color:#263f57;}
+@media(max-width:670px){.app-page .entry-publish-options .entry-options-grid > label{padding:13px;}}
