@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -11,6 +11,7 @@
 
 header("content-type: text/html; charset=UTF-8");
 require_once('config.php');
+require_once __DIR__.'/inc/admin_auth.php';
 require_once 'inc/content.php';
 require_once 'inc/admin_login.php';
 require_once 'inc/github_update.php';
@@ -34,7 +35,8 @@ if (false) { // Legacy cache switch disabled: authenticated HTML must never be c
 $text_admin_run_login = 
 $text_admin_run_logout = '';
 
-if (confirm_power()) {
+$th_current_admin = th_admin_authorized();
+if ($th_current_admin) {
 	$text_admin_run_logout = '<a href="run.php?act=logout">退出管理员</a> ';
 } else {
 	$text_admin_run_login = th_admin_login_html('admin');
@@ -70,7 +72,7 @@ table#set td.right {
 </head>
 <body class="app-page admin-page">
 <header id="top">
-  <div class="body top-inner"><a href="./" id="logo"><span class="brand-symbol">T<span>_</span></span><span class="brand-name"><?php echo htmlspecialchars($web['sitename'], ENT_QUOTES, 'UTF-8'); ?></span></a><nav class="site-nav"><a href="./">浏览内容</a><a href="write.php">新建留言</a><a href="index.php?admin_run=1">留言管理</a><a href="admin.php" class="active">管理设置</a><a href="update.php">版本更新</a><?php echo $text_admin_run_logout; unset($text_admin_run_logout); ?></nav><div class="theme-control">
+  <div class="body top-inner"><a href="./" id="logo"><span class="brand-symbol">T<span>_</span></span><span class="brand-name"><?php echo htmlspecialchars($web['sitename'], ENT_QUOTES, 'UTF-8'); ?></span></a><nav class="site-nav"><a href="./">浏览内容</a><a href="write.php">新建留言</a><?php if ($th_current_admin): ?><a href="index.php?admin_run=1">留言管理</a><a href="admin.php" class="active">管理设置</a><a href="update.php">版本更新</a><?php echo $text_admin_run_logout; unset($text_admin_run_logout); ?><?php else: ?><a href="admin.php" class="active">管理员登录</a><?php endif; ?></nav><div class="theme-control">
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="点击切换主题" title="点击切换主题"><span class="theme-icon" aria-hidden="true">◐</span><span id="theme-label">自动</span></button><button type="button" class="theme-menu-toggle" id="theme-menu-toggle" aria-label="选择主题模式" aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu" title="选择自动、浅色或深色模式"><span class="theme-chevron" aria-hidden="true">⌄</span></button>
       <div class="theme-menu" id="theme-menu" role="group" aria-label="显示主题" hidden>
         <button type="button" data-theme-choice="auto">◐ <span>自动</span></button>
@@ -84,7 +86,8 @@ table#set td.right {
   <section class="intro body"><h1>站点设置</h1></section>
 
 <?php echo $text_admin_run_login; unset($text_admin_run_login); ?>
-<?php if (confirm_power()): ?><div class="body admin-quicklinks"><a href="index.php?admin_run=1"><strong>留言管理</strong><span>删除、审核和回复</span></a><a href="update.php"><strong>版本更新</strong><span>检查版本与代理设置</span></a></div><?php endif; ?>
+<?php if ($th_current_admin): ?><div class="body admin-quicklinks"><a href="index.php?admin_run=1"><strong>留言管理</strong><span>删除、审核和回复</span></a><a href="update.php"><strong>版本更新</strong><span>检查版本与代理设置</span></a></div><?php endif; ?>
+<?php if ($th_current_admin): ?>
 <form name="mainform" id="mainform" action="run.php" method="post" enctype="multipart/form-data" target="lastFrame">
   <div class="body rounded admin-settings-card">
     <div class="texts">
@@ -398,6 +401,7 @@ main.removeKw = function(obj) {
     </div>
   </div>
 </form>
+<?php endif; ?>
 </main>
 <div id="foot">
   <div class="body">Copyright &copy; <?php echo gmdate("Y", time() + floatval($web["time_pos"]) * 3600); ?> <b><?php echo $web['sitename']; ?></b> All Rights Reserved</div>

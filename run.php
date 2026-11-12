@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -401,7 +401,7 @@ if (!$ajax_write) {
 }
 if (!isset($_POST['act'])) $_POST['act'] = '';
 if (!isset($_REQUEST['act'])) $_REQUEST['act'] = '';
-define('ADMIN_POWER', confirm_power());
+define('ADMIN_POWER', th_admin_authorized());
 
 //填写
 if (isset($_POST['act']) && $_POST['act'] === 'write') :
@@ -571,6 +571,13 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
 
     // A JSON response proves the index append succeeded before redirect.
     // The client navigates to the exact record's unique index key.
+    if ($password !== '' && $password_digest !== '') {
+        try {
+            th_share_remember($new_id,$password,$password_digest);
+        } catch(Throwable $e) {
+            error_log('TxtHarbor: cannot remember temporary share link for browser session: '.$e->getMessage());
+        }
+    }
     $posted_url = './?focus='.$loc.'-'.$strlen;
     write_finish(true, '发布成功，正在打开刚刚提交的留言…', $posted_url, 200, 'entry.php?id='.$new_id);
 

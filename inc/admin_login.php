@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 /** Shared accessible administrator login panel. */
 function th_admin_login_html($from = 'index') {
     $errors = array('empty'=>'请输入管理密钥','invalid'=>'管理密钥不正确，请重试','storage'=>'管理员登录数据无法写入，请检查 data 目录权限');

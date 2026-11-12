@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -14,6 +14,7 @@ header("content-type:text/html; charset=UTF-8");
 //header('Pragma:no-cache');
 
 require_once('config.php');
+require_once __DIR__.'/inc/admin_auth.php';
 require_once('inc/entry_view.php');
 require_once('inc/admin_login.php');
 $web = text_v2_config_utf8($web);
@@ -21,7 +22,7 @@ header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
-define('ADMIN_POWER', confirm_power());
+define('ADMIN_POWER', th_admin_authorized());
 if (isset($_GET['id']) && is_string($_GET['id']) && preg_match('/^[a-f0-9]{24}$/D', $_GET['id'])) {
     header('Location: entry.php?id='.$_GET['id'], true, 302);
     exit;

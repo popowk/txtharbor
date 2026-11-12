@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 header('Content-Type: text/html; charset=UTF-8');
 require_once 'config.php';
 require_once 'inc/content.php';

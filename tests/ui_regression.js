@@ -16,9 +16,11 @@ const context={
   console,URL,FormData,Event,Uint32Array,setTimeout,clearTimeout,Promise,
   navigator:{clipboard:{writeText: async function (text){clipboard=text;}}},
   window:{crypto:crypto.webcrypto,isSecureContext:true,location:{href:'https://example.test/entry.php'}},
-  parent:null,self:null,document,fetch:async()=>({ok:true,json:async()=>({ok:true})})
+  parent:null,self:null,document,fetch:async(url,opts)=>({ok:opts.body.get('action')!=='share_recover',json:async()=>opts.body.get('action')==='share_recover'?{ok:false,code:'needs_password'}:{ok:true}})
 };
 context.window.document=document;
+context.window.fetch=context.fetch;
+context.window.FormData=FormData;
 context.parent=context.self=context.window;
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../inc/main.js'),'utf8'),context);
@@ -41,9 +43,24 @@ main.notify=function(message,error){notices.push({message,error})};
  }[k]}};
  context.window.prompt=function(){return 'a1b2'};
  main.shareEntry(button);
- await new Promise(resolve=>setTimeout(resolve,30));
+ await new Promise(resolve=>setTimeout(resolve,80));
  assert.match(clipboard,new RegExp('entry\\.php\\?id='+id+'#key=a1b2$'));
  assert.equal(button.disabled,false);
+ // One-click share on the browser that published/unlocked the content.
+ let promptCalls=0,fetchCalls=0;
+ context.window.prompt=function(){promptCalls++;return 'should-not-be-used';};
+ context.fetch=async()=>{fetchCalls++;throw Error('Direct share must not use network');};
+ const direct={disabled:false,getAttribute(k){return {
+   'data-share-url':'entry.php?id='+id,
+   'data-share-protected':'1',
+   'data-share-ready':'entry.php?id='+id+'#key=ab13'
+ }[k]}};
+ main.shareEntry(direct);
+ await new Promise(resolve=>setTimeout(resolve,10));
+ assert.match(clipboard,/#key=ab13$/);
+ assert.equal(promptCalls,0);
+ assert.equal(fetchCalls,0);
+
  assert(notices.some(x=>/已复制/.test(x.message)));
- console.log('PASS: secure random four-character password and share-copy with password fragment');
+ console.log('PASS: secure random four-character password; direct same-browser share without password prompt; fallback verification');
 })().catch(e=>{console.error(e);process.exit(1)});

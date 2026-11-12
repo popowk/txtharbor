@@ -1,4 +1,4 @@
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 /*
 * 程序名称：162100留言本（吧）
 * 程序编码：UTF-8
@@ -273,28 +273,40 @@ main = {
     },
 
     shareEntry: function(button) {
-        var url = button.getAttribute('data-share-url');
+        var url=button.getAttribute('data-share-url');
         if (!url) return;
-        var absolute = new URL(url, window.location.href);
-        var that = this;
-        if (button.getAttribute('data-share-protected') !== '1') {
-            this.copyShareText(absolute.href); return;
+        var absolute=new URL(url, window.location.href);
+        var that=this;
+        if (button.getAttribute('data-share-protected')!=='1') { this.copyShareText(absolute.href); return; }
+        var ready=button.getAttribute('data-share-ready');
+        if (ready) {this.copyShareText(new URL(ready,window.location.href).href);return;}
+        if (!window.fetch || !window.FormData) {
+            this.notify('当前浏览器不支持快速分享，请使用现代浏览器',true); return;
         }
-        var password = window.prompt('请输入这条留言的访问密码，用于生成可自动填入密码的分享链接：');
-        if (password === null || password === '') return;
-        var form = new FormData();
-        form.set('action','share_verify');
-        form.set('csrf',button.getAttribute('data-share-csrf') || '');
-        form.set('password',password);
+        var csrf=button.getAttribute('data-share-csrf') || '';
         button.disabled=true;
-        fetch(absolute.href, {method:'POST',credentials:'same-origin',body:form,headers:{'Accept':'application/json'}})
-          .then(function(r) {return r.json().then(function(data) {
-              if (!r.ok || !data.ok) throw new Error(data.message || '访问密码验证失败');
-              absolute.hash = 'key=' + encodeURIComponent(password);
-              return that.copyShareText(absolute.href);
-          });})
-          .catch(function(e) {that.notify(e.message || '无法生成分享链接', true);})
-          .finally(function(){button.disabled=false;});
+        var recover=new FormData();recover.set('action','share_recover');recover.set('csrf',csrf);
+        fetch(absolute.href,{method:'POST',credentials:'same-origin',body:recover,headers:{'Accept':'application/json'}})
+        .then(function(response){return response.json().then(function(result){
+            if (response.ok && result && result.ok && result.url) return that.copyShareText(new URL(result.url,window.location.href).href);
+            if (result && result.code==='needs_password') return that.shareEntryFallback(absolute,csrf);
+            throw new Error(result && result.message ? result.message : '无法读取当前浏览器的分享信息');
+        });})
+        .catch(function(error){that.notify(error.message || '复制分享链接失败',true);})
+        .finally(function(){button.disabled=false;});
+    },
+
+    shareEntryFallback: function(absolute,csrf) {
+        var password=window.prompt('此浏览器尚未保存分享密码，请输入一次访问密码：');
+        if (password===null || password==='') return Promise.resolve(false);
+        var that=this,form=new FormData();
+        form.set('action','share_verify');form.set('csrf',csrf);form.set('password',password);
+        return fetch(absolute.href,{method:'POST',credentials:'same-origin',body:form,headers:{'Accept':'application/json'}})
+        .then(function(response){return response.json().then(function(result){
+            if(!response.ok || !result || !result.ok) throw new Error(result && result.message ? result.message : '密码验证失败');
+            absolute.hash='key='+encodeURIComponent(password);
+            return that.copyShareText(absolute.href);
+        });});
     },
 
     generateAccessPassword: function(id, button) {

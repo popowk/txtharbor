@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 /** Single stable-link view and authorized edit/update entry point. */
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
@@ -8,15 +8,39 @@ header('Expires: 0');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 require __DIR__.'/config.php';
+require_once __DIR__.'/inc/admin_auth.php';
 require_once __DIR__.'/inc/entry_view.php';
 $web=text_v2_config_utf8($web);
 if ((int)$web['site_close']===1) {header('Location: 0.php');exit;}
-define('ADMIN_POWER',confirm_power());
+define('ADMIN_POWER',th_admin_authorized());
 try {$id=isset($_GET['id']) && is_string($_GET['id'])?$_GET['id']:''; $entry=th_entry_find($id);}catch(Throwable $ex){http_response_code(503);exit('留言数据暂不可用，请管理员检查权限元数据。');}
 if (!$entry || (!ADMIN_POWER && th_entry_expired($entry))) {http_response_code(404);exit('留言不存在或已过期');}
 $message='';$error='';
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     // Verify the entered password before including it in a share link. Passwords are never stored in plaintext.
+    if (($_POST['action'] ?? '') === 'share_recover') {
+        header('Content-Type: application/json; charset=UTF-8');
+        header('Cache-Control: no-store, private');
+        if (!th_access_csrf_valid($_POST['csrf']??null)) {
+            http_response_code(403);
+            echo json_encode(array('ok'=>false,'code'=>'csrf','message'=>'验证已过期，请刷新页面'),JSON_UNESCAPED_UNICODE);
+        } elseif ($entry['pending'] && !ADMIN_POWER || th_entry_expired($entry) && !ADMIN_POWER) {
+            http_response_code(403);
+            echo json_encode(array('ok'=>false,'code'=>'forbidden','message'=>'留言不可访问'),JSON_UNESCAPED_UNICODE);
+        } else {
+            $secret=th_share_secret($entry);
+            if ($entry['password_hash'] === '' || is_string($secret)) {
+                $relative=th_entry_share($entry);
+                if ($entry['password_hash'] !== '') $relative.='#key='.rawurlencode($secret);
+                echo json_encode(array('ok'=>true,'url'=>$relative),JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            } else {
+                http_response_code(409);
+                echo json_encode(array('ok'=>false,'code'=>'needs_password',
+                    'message'=>'当前浏览器没有此留言的分享凭据，请输入一次访问密码'),JSON_UNESCAPED_UNICODE);
+            }
+        }
+        exit;
+    }
     if (($_POST['action'] ?? '') === 'share_verify') {
         header('Content-Type: application/json; charset=UTF-8');
         header('Cache-Control: no-store, private');
@@ -28,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             elseif (!isset($_POST['password']) || !is_string($_POST['password']) ||
                 !password_verify($_POST['password'], $entry['password_hash'])) {
                 th_access_rate($entry['id'], false);
-            } else { th_access_rate($entry['id'], true); $ok=true;$status=200;$reason='ok'; }
+            } else { th_access_rate($entry['id'], true); th_share_remember($entry['id'],$_POST['password'],$entry['password_hash']); $ok=true;$status=200;$reason='ok'; }
         } catch (Throwable $ex) {$status=503;$reason='密码验证暂不可用，请联系管理员检查权限';}
         http_response_code($status);
         echo json_encode(array('ok'=>$ok,'message'=>$reason),JSON_UNESCAPED_UNICODE);
@@ -46,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
                     th_access_rate($entry['id'],true);
                     th_access_session();
                     $_SESSION['th_unlock'][$entry['id']]=hash('sha256',$entry['password_hash']);
+                    th_share_remember($entry['id'],$_POST['password'],$entry['password_hash']);
                     session_write_close();
                     header('Location: '.th_entry_share($entry),true,303);exit;
                 }
@@ -97,6 +122,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
                         if(!isset($record['media']))$record['media']=array(); // future cloud references only
                         $all[$entry['id']]=$record;return $all;
                     });
+                    if ($mode==='set' && is_string($newhash) && $newhash!=='') {
+                        try { th_share_remember($entry['id'],$new_password,$newhash); }
+                        catch(Throwable $e) { error_log('TxtHarbor share session: '.$e->getMessage()); }
+                    }
                     if (isset($_POST['ajax']) && $_POST['ajax']==='1') {
                         header('Content-Type: application/json; charset=UTF-8');
                         header('Cache-Control: no-store, private');
@@ -143,7 +172,18 @@ $update_active=isset($_GET['saved'])&&!empty($_GET['saved']);
 <article class="body rounded message-card entry-detail"><div class="texts"><div class="entry-topline"><span><?php echo date('Y-m-d H:i',$entry['created_at']); ?><?php echo $entry['pinned']?' · 📌 已置顶':''; ?><?php echo th_entry_expired($entry)?' · 已过期':''; ?></span><span><a href="./">返回列表</a><?php if(ADMIN_POWER): ?>　<a href="entry.php?id=<?php echo $entry['id']; ?>&amp;edit=1">编辑与设置</a><?php endif; ?></span></div>
 <?php if (ADMIN_POWER): ?><form method="post" action="entry.php?id=<?php echo $entry['id']; ?>" class="entry-pin-form"><input type="hidden" name="action" value="toggle_pin"><input type="hidden" name="csrf" value="<?php echo text_v2_html($csrf); ?>"><button type="submit" class="entry-action"><?php echo $entry['pinned'] ? '取消置顶' : '📌 一键置顶'; ?></button></form><?php endif; ?>
 <?php if($locked): ?>
-<div class="entry-locked"><h2>🔒 密码保护的留言</h2><p>输入访问密码后才能查看正文和复制 Markdown 原文。</p><form method="post" action="entry.php?id=<?php echo $entry['id']; ?>"><input type="hidden" name="action" value="unlock"><input type="hidden" name="csrf" value="<?php echo text_v2_html($csrf); ?>"><label>访问密码<input id="entry-unlock-password" class="modern-input" type="password" name="password" required autocomplete="off" placeholder="输入访问密码，分享链接可自动填入"></label><button type="submit" class="send2 primary-button">解锁内容</button></form></div>
+<section class="entry-locked" aria-labelledby="entry-locked-title">
+  <div class="entry-lock-mark" aria-hidden="true">🔒</div>
+  <h2 id="entry-locked-title">这条留言已加密保护</h2>
+  <p class="entry-lock-intro">输入访问密码后可查看正文、复制 Markdown 原文。</p>
+  <form class="entry-unlock-form" method="post" action="entry.php?id=<?php echo $entry['id']; ?>">
+    <input type="hidden" name="action" value="unlock"><input type="hidden" name="csrf" value="<?php echo text_v2_html($csrf); ?>">
+    <label class="entry-unlock-label" for="entry-unlock-password">访问密码</label>
+    <input id="entry-unlock-password" class="modern-input entry-unlock-input" type="password" name="password" required autocomplete="off" placeholder="请输入访问密码">
+    <p class="entry-unlock-tip">带密码的分享链接会自动填入密码。</p>
+    <button type="submit" class="send2 primary-button entry-unlock-submit">解锁并查看留言</button>
+  </form>
+</section>
 <?php elseif($entry['pending']&&!ADMIN_POWER): ?><p>内容审核中</p>
 <?php else: ?><div class="text"><?php echo th_entry_body_html($entry,ADMIN_POWER); ?></div><?php if($entry['reply'] !== ''): ?><div class="ad_reply"><strong>管理员回复</strong><div class="entry-raw"><?php echo text_v2_html($entry['reply']); ?></div></div><?php endif; ?><div class="entry-actions"><?php echo th_entry_controls($entry,ADMIN_POWER); ?></div><?php endif; ?>
 </div></article><?php endif; ?>

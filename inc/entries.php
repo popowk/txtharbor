@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 /** TxtHarbor v1.5 entry extension. Old byte-indexed record data is read-only. */
 require_once __DIR__.'/content.php';
 const TH_META_PREFIX = "<?php exit; ?>\n";
@@ -168,14 +168,43 @@ function th_entries_scan($meta = null) {
     fclose($idx); fclose($body);
     return $out;
 }
-function th_is_admin() { return defined('ADMIN_POWER') ? ADMIN_POWER : (function_exists('confirm_power') && confirm_power()); }
+function th_is_admin() { return defined('ADMIN_POWER') ? ADMIN_POWER : (function_exists('th_admin_authorized') && th_admin_authorized()); }
 function th_entry_expired($entry) {return $entry['expires_at'] > 0 && $entry['expires_at'] <= time();}
 function th_access_session() {
     if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
         ini_set('session.use_strict_mode','1');
+        ini_set('session.gc_maxlifetime','86400');
         session_set_cookie_params(array('lifetime'=>0,'path'=>'/','secure'=>!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off','httponly'=>true,'samesite'=>'Lax'));
         session_start();
     }
+}
+/** The browser holds only the opaque, HttpOnly PHP session cookie.
+ * A short-lived share key stays server-side in its private session, never in permanent post data. */
+function th_share_remember($id, $password, $hash) {
+    if (!is_string($password) || $password==='' || !is_string($hash) || $hash==='') return;
+    th_access_session();
+    if (session_status()!==PHP_SESSION_ACTIVE) throw new RuntimeException('浏览器会话不可用');
+    if (!isset($_SESSION['th_share_keys']) || !is_array($_SESSION['th_share_keys'])) $_SESSION['th_share_keys']=array();
+    $now=time();
+    foreach ($_SESSION['th_share_keys'] as $oldid=>$record) {
+        if (!is_array($record) || (int)($record['time']??0)<$now-86400) unset($_SESSION['th_share_keys'][$oldid]);
+    }
+    // Never save the plaintext to an HTTP cookie. PHP session storage should be private.
+    $_SESSION['th_share_keys'][$id]=array('key'=>$password,'fingerprint'=>hash('sha256',$hash),'time'=>$now);
+    if (!isset($_SESSION['th_unlock']) || !is_array($_SESSION['th_unlock'])) $_SESSION['th_unlock']=array();
+    $_SESSION['th_unlock'][$id]=hash('sha256',$hash);
+    if (count($_SESSION['th_share_keys'])>25) $_SESSION['th_share_keys']=array_slice($_SESSION['th_share_keys'],-25,null,true);
+}
+function th_share_secret($entry) {
+    if ($entry['password_hash']==='') return '';
+    th_access_session();
+    if (session_status()!==PHP_SESSION_ACTIVE) return null;
+    $data=$_SESSION['th_share_keys'][$entry['id']]??null;
+    if (!is_array($data) || !is_string($data['key']??null) ||
+        (int)($data['time']??0)<time()-86400 ||
+        !is_string($data['fingerprint']??null) ||
+        !hash_equals(hash('sha256',$entry['password_hash']),$data['fingerprint'])) return null;
+    return $data['key'];
 }
 function th_entry_unlocked($entry) {
     if (th_is_admin()) return true;

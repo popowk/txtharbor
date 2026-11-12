@@ -92,7 +92,7 @@ function text_v2_check($value, $limit, $type) {
 }
 /** Token for state-changing message deletion, tied to the existing admin session. */
 function text_v2_delete_token() {
-    $cookie = isset($_COOKIE['manage']) ? (string)$_COOKIE['manage'] : '';
+    $cookie = isset($_COOKIE['th_admin_auth']) ? (string)$_COOKIE['th_admin_auth'] : '';
     return hash_hmac('sha256', 'delete-message-v1', $cookie.'|'.(string)@file_get_contents('data/admin_key.php'));
 }
 ?>

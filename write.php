@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 /*
  * 162100 留言本衍生界面，原项目版权信息保留。
  * 作者：162100.com；仅供学习交流，禁用于商业目的。
@@ -9,6 +9,7 @@ header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0')
 header('Pragma: no-cache');
 header('Expires: 0');
 require_once 'config.php';
+require_once __DIR__.'/inc/admin_auth.php';
 require_once 'inc/entries.php';
 $web = text_v2_config_utf8($web);
 header('Content-Type: text/html; charset=UTF-8');
@@ -38,7 +39,7 @@ main.maxContentWordCount = <?php echo WORD_SIZE; ?>;
     <a href="./" id="logo" aria-label="返回留言列表"><span class="brand-symbol">T<span>_</span></span><span class="brand-name"><?php echo htmlspecialchars($web['sitename'], ENT_QUOTES, 'UTF-8'); ?></span></a>
     <nav class="site-nav" aria-label="主要导航">
       <a href="./">浏览内容</a><a class="active" href="write.php">新建留言</a>
-      <?php if (confirm_power()) { ?><a href="run.php?act=logout">退出管理员</a><?php } ?>
+      <?php if (th_admin_authorized()) { ?><a href="run.php?act=logout">退出管理员</a><?php } ?>
     </nav><div class="theme-control">
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="点击切换主题" title="点击切换主题"><span class="theme-icon" aria-hidden="true">◐</span><span id="theme-label">自动</span></button><button type="button" class="theme-menu-toggle" id="theme-menu-toggle" aria-label="选择主题模式" aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu" title="选择自动、浅色或深色模式"><span class="theme-chevron" aria-hidden="true">⌄</span></button>
       <div class="theme-menu" id="theme-menu" role="group" aria-label="显示主题" hidden>
@@ -80,7 +81,7 @@ main.maxContentWordCount = <?php echo WORD_SIZE; ?>;
             <div class="editor-toolbar"><div class="toolbar-actions"><button type="button" class="tool-button" onclick="main.clearInput('content');">✕ <span>一键清空</span></button><button type="button" class="tool-button paste" onclick="main.pasteInput('content');">▣ <span>一键粘贴</span></button></div></div>
           </div>
         </div>
-        <?php if ($web['imcode_close'] !== 1 && !confirm_power()) { ?>
+        <?php if ($web['imcode_close'] !== 1 && !th_admin_authorized()) { ?>
         <div class="field-block" id="imcodediv"><div class="field-title"><label for="imcode">验证码 <span class="redword">*</span></label></div><div class="captcha-row"><input type="text" name="imcode" id="imcode" size="6" maxlength="6" autocomplete="off" /><iframe id="imcodejs" name="imcodejs" title="验证码" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" src="inc/imcode.html"></iframe></div></div>
         <?php } ?>
         <div class="entry-publish-options">

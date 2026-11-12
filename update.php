@@ -1,10 +1,11 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 /*
 * TxtHarbor GitHub updater, based on the 162100 message board.
 * Original copyright and noncommercial restriction preserved in original files.
 */
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/inc/admin_auth.php';
 require_once __DIR__ . '/inc/content.php';
 require_once __DIR__ . '/inc/github_update.php';
 $web = text_v2_config_utf8($web);
@@ -12,7 +13,7 @@ header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
-if (!confirm_power()) {
+if (!th_admin_authorized()) {
     http_response_code(403);
     echo '<!doctype html><html lang="zh"><meta charset="utf-8"><title>请先登录管理后台</title><body><p>请先从 <a href="admin.php">管理设置</a> 登录后再进入更新中心。</p></body></html>';
     exit;

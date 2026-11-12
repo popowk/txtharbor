@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.3 */
+/* TxtHarbor-build:1.5.4 */
 /* TxtHarbor GitHub release updater. Keep the original software copyright notices. */
 
 function th_update_defaults() {
@@ -99,7 +99,7 @@ function th_runtime_health() {
         'checked'=>count($components),'issues'=>$issues);
 }
 function th_update_token() {
-    $cookie = isset($_COOKIE['manage']) ? (string)$_COOKIE['manage'] : '';
+    $cookie = isset($_COOKIE['th_admin_auth']) ? (string)$_COOKIE['th_admin_auth'] : '';
     return hash_hmac('sha256', 'th-updater-v1', $cookie . '|' . (string)@file_get_contents(dirname(__DIR__) . '/data/admin_key.php'));
 }
 function th_update_fetch($url, $limit, &$error) {
