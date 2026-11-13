@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.5 */
+/* TxtHarbor-build:1.5.6 */
 /*
  * 162100 留言本衍生界面，原项目版权信息保留。
  * 作者：162100.com；仅供学习交流，禁用于商业目的。
@@ -89,7 +89,16 @@ main.maxContentWordCount = <?php echo WORD_SIZE; ?>;
           <div class="entry-options-grid"><label>有效期
             <select name="expiry" id="expiry-option"><option value="never">永久有效</option><option value="1d">1 天</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="custom">自定义时间</option></select>
           </label><label>访问密码（可选）<div class="password-tools"><input id="publish-access-password" type="password" name="access_password" class="modern-input" autocomplete="new-password" minlength="4" placeholder="至少 4 位，留空表示公开"><button type="button" class="tool-button" onclick="main.generateAccessPassword('publish-access-password',this)">随机生成</button></div><small>默认生成 4 位小写字母和数字，更长的密码更安全</small></label></div>
-          <label id="expiry-custom-wrap" hidden>到期时间（北京时间）<input type="datetime-local" name="expiry_custom" class="modern-input"></label>
+          <?php $th_default_time=(new DateTimeImmutable('now',new DateTimeZone('Asia/Shanghai')))->modify('+1 day'); ?>
+          <div class="expiry-picker" id="expiry-custom-wrap" hidden>
+            <span class="expiry-picker-title">自定义到期时间 <small>北京时间 UTC+8</small></span>
+            <div class="expiry-picker-fields">
+              <label for="publish-expiry-date">日期<input type="date" id="publish-expiry-date" name="expiry_date" class="modern-input" value="<?php echo $th_default_time->format('Y-m-d'); ?>" disabled></label>
+              <label for="publish-expiry-hour">小时（0–23）<select id="publish-expiry-hour" name="expiry_hour" disabled><?php for($i=0;$i<24;$i++): $v=sprintf('%02d',$i); ?><option value="<?php echo $v; ?>" <?php echo $i===23?'selected':''; ?>><?php echo $v; ?> 时</option><?php endfor; ?></select></label>
+              <label for="publish-expiry-minute">分钟（0–59）<select id="publish-expiry-minute" name="expiry_minute" disabled><?php for($i=0;$i<60;$i++): $v=sprintf('%02d',$i); ?><option value="<?php echo $v; ?>" <?php echo $i===59?'selected':''; ?>><?php echo $v; ?> 分</option><?php endfor; ?></select></label>
+            </div>
+            <small>到期只隐藏访问，不会自动清空留言数据。</small>
+          </div>
         </div>
         <div class="editor-footer"><span class="privacy-hint">保留换行、空格及特殊字符</span><button class="send2 primary-button" type="submit">发布留言 <span aria-hidden="true">↗</span></button></div>
         <div id="submit-feedback" class="submit-feedback" role="alert" aria-live="assertive" hidden></div>
@@ -101,9 +110,7 @@ main.maxContentWordCount = <?php echo WORD_SIZE; ?>;
 <noscript><div class="warning">请开启 JavaScript 以使用快捷操作和提交反馈。</div></noscript>
 <script>
 (function(){
-  var expiry = document.getElementById('expiry-option');
-  var custom = document.getElementById('expiry-custom-wrap');
-  if (expiry && custom) expiry.addEventListener('change', function () { custom.hidden = expiry.value !== 'custom'; });
+  main.setupExpiryPicker('expiry-option','expiry-custom-wrap');
   main.runGetWordCount('content', main.maxContentWordCount);
   if (document.getElementById('subject')) main.runGetWordCount('subject', main.maxSubjectWordCount);
 })();

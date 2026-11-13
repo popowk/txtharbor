@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.5 */
+/* TxtHarbor-build:1.5.6 */
 /** TxtHarbor v1.5 entry extension. Old byte-indexed record data is read-only. */
 require_once __DIR__.'/content.php';
 const TH_META_PREFIX = "<?php exit; ?>\n";
@@ -169,6 +169,33 @@ function th_entries_scan($meta = null) {
     return $out;
 }
 function th_is_admin() { return defined('ADMIN_POWER') ? ADMIN_POWER : (function_exists('th_admin_authorized') && th_admin_authorized()); }
+/** Parse custom expiry in Beijing local time. Explicit date/hour/minute fields
+ * work in browsers with incomplete datetime-local time selection. Legacy
+ * expiry_custom values remain accepted for old cached forms. */
+function th_expiry_from_post($post) {
+    $timezone = new DateTimeZone('Asia/Shanghai');
+    if (isset($post['expiry_date']) || isset($post['expiry_hour']) || isset($post['expiry_minute'])) {
+        $day = $post['expiry_date'] ?? null;
+        $hour = $post['expiry_hour'] ?? null;
+        $minute = $post['expiry_minute'] ?? null;
+        if (!is_string($day) || !preg_match('/^\d{4}-\d{2}-\d{2}$/D', $day) ||
+            !is_string($hour) || !preg_match('/^(?:[01]\d|2[0-3])$/D', $hour) ||
+            !is_string($minute) || !preg_match('/^[0-5]\d$/D', $minute)) return null;
+        $value=$day.' '.$hour.':'.$minute;
+        $format='!Y-m-d H:i';
+        $check='Y-m-d H:i';
+    } else {
+        $value=$post['expiry_custom'] ?? null;
+        if (!is_string($value) || !preg_match('/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/D', $value)) return null;
+        $format='!Y-m-d\\TH:i';
+        $check='Y-m-d\\TH:i';
+    }
+    try {
+        $date=DateTimeImmutable::createFromFormat($format,$value,$timezone);
+        if (!$date || $date->format($check)!==$value || $date->getTimestamp()<=time()) return null;
+        return $date->getTimestamp();
+    } catch (Throwable $e) { return null; }
+}
 function th_entry_expired($entry) {return $entry['expires_at'] > 0 && $entry['expires_at'] <= time();}
 /** A site-specific PHP session prevents cross-app PHPSESSID collisions. When
  * shared-host session.save_path is unwritable, use private system temporary storage.

@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.5 */
+/* TxtHarbor-build:1.5.6 */
 /*
 * TxtHarbor GitHub updater, based on the 162100 message board.
 * Original copyright and noncommercial restriction preserved in original files.

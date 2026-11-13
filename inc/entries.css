@@ -1,4 +1,4 @@
-/* TxtHarbor-build:1.5.5 */
+/* TxtHarbor-build:1.5.6 */
 /* TxtHarbor v1.5: raw Markdown preservation, share/settings, password cards. */
 .app-page .entry-actions,.app-page .entry-buttons{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .app-page .entry-action{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border:1px solid var(--line-strong);border-radius:9px;color:var(--cyan-bright);background:var(--panel-2);font-size:12px;font-weight:600;text-decoration:none}
@@ -131,4 +131,40 @@
   .app-page .entry-detail .texts {padding:clamp(14px,4vw,20px);}
   .app-page .entry-detail .entry-locked {margin:12px auto;padding:22px 18px;border-radius:15px;}
   .app-page .entry-locked .entry-lock-intro {margin-bottom:20px;}
+}
+
+/* v1.5.6: reliable date/hour/minute selector on desktop and mobile. */
+.app-page .expiry-picker[hidden] {display:none!important;}
+.app-page .expiry-picker {display:flex;flex-direction:column;gap:12px;padding:17px 18px;
+  background:var(--panel-2);border:1px solid var(--line-strong);border-radius:13px;
+  min-width:0;box-sizing:border-box;color:var(--ink);}
+.app-page .expiry-picker-title{font-size:13px;font-weight:750;color:var(--ink);}
+.app-page .expiry-picker-title small,.app-page .expiry-picker>small{font-size:12px;font-weight:400;color:var(--muted);}
+.app-page .expiry-picker-fields{display:grid;grid-template-columns:minmax(190px,2fr) minmax(105px,1fr) minmax(105px,1fr);gap:12px;align-items:end;}
+.app-page .expiry-picker .expiry-picker-fields>label{display:flex!important;flex-direction:column;align-items:stretch;gap:8px;
+  margin:0!important;padding:0!important;background:transparent!important;border:0!important;
+  color:var(--ink)!important;font-size:12px;font-weight:600;min-width:0;box-shadow:none!important;}
+.app-page .expiry-picker-fields input,.app-page .expiry-picker-fields select{display:block;box-sizing:border-box;min-width:0;
+  width:100%;height:44px;padding:9px 10px;border-radius:9px;border:1px solid var(--line-strong);
+  background:var(--panel);color:var(--ink);font:inherit;}
+.app-page .expiry-picker-fields input:focus-visible,.app-page .expiry-picker-fields select:focus-visible{outline:2px solid var(--cyan);outline-offset:1px;}
+:root[data-theme="light"] .app-page .expiry-picker{background:#f7fafc;border-color:#d8e4ee;color:#263f57;}
+:root[data-theme="light"] .app-page .expiry-picker-fields input,:root[data-theme="light"] .app-page .expiry-picker-fields select{background:#fff;color:#263f57;border-color:#d6e3ed;}
+@media(max-width:600px){.app-page .expiry-picker-fields{grid-template-columns:repeat(2,minmax(0,1fr));}.app-page .expiry-picker-fields>label:first-child{grid-column:1/-1}}
+/* Editor controls must not inherit the legacy opaque white label background. */
+.app-page .entry-settings label.entry-check{
+  display:flex!important;flex-direction:row;align-items:center;gap:10px;
+  padding:14px 16px;margin:0;background:var(--panel-2)!important;
+  border:1px solid var(--line-strong);border-radius:11px;
+  color:var(--ink)!important;font-size:13px;font-weight:650;cursor:pointer;
+}
+.app-page .entry-settings label.entry-check input[type="checkbox"]{
+  width:17px;height:17px;margin:0;flex:none;accent-color:var(--cyan);
+}
+.app-page .entry-settings .editor-footer .primary-button{
+  color:#fff!important;background:linear-gradient(135deg,#157fa5,#0f6c93)!important;
+  border-color:rgba(58,190,226,.35);font-weight:700;
+}
+:root[data-theme="light"] .app-page .entry-settings label.entry-check{
+  background:#f7fafc!important;color:#263f57!important;border-color:#d8e4ee;
 }

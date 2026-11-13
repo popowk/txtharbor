@@ -61,6 +61,23 @@ main.notify=function(message,error){notices.push({message,error})};
  assert.equal(promptCalls,0);
  assert.equal(fetchCalls,0);
 
+
+ // Edit/publish expiry selectors must be activated only for custom expiry.
+ const date = {name:'expiry_date',disabled:true,required:false};
+ const hour = {name:'expiry_hour',disabled:true};
+ const minute = {name:'expiry_minute',disabled:true};
+ const select={value:'keep',listener:null,addEventListener(event,fn){this.listener=fn;}};
+ const panel={hidden:true,querySelectorAll(){return [date,hour,minute];}};
+ const prevGet=document.getElementById;
+ document.getElementById=(id)=>id==='expiry-choice-test'?select:id==='expiry-panel-test'?panel:prevGet(id);
+ main.setupExpiryPicker('expiry-choice-test','expiry-panel-test');
+ assert(panel.hidden&&date.disabled&&!date.required);
+ select.value='custom';select.listener();
+ assert(!panel.hidden&&!date.disabled&&!hour.disabled&&!minute.disabled&&date.required);
+ select.value='keep';select.listener();
+ assert(panel.hidden&&date.disabled&&!date.required);
+ document.getElementById=prevGet;
+
  assert(notices.some(x=>/已复制/.test(x.message)));
  console.log('PASS: secure random four-character password; direct same-browser share without password prompt; fallback verification');
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -1,4 +1,4 @@
-/* TxtHarbor-build:1.5.5 */
+/* TxtHarbor-build:1.5.6 */
 /*
 * 程序名称：162100留言本（吧）
 * 程序编码：UTF-8
@@ -333,26 +333,62 @@ main = {
         this.notify('已生成 4 位密码，请妥善保存；更长密码更安全');
     },
 
+    /** Progressive enhancement: keep native POST as fallback. Clipboard or URL
+     * exceptions after a successful commit must never be shown as save failures. */
     saveEntrySettings: function(event, form) {
-        if (!window.fetch || !window.FormData) return true;
+        if (!window.fetch || !window.FormData || !window.Promise) return true;
         if (event) event.preventDefault();
-        var data=new FormData(form),that=this;
+        var data, that=this;
+        try { data=new FormData(form); } catch(e) {
+            this.notify('表单无法读取，请刷新页面后重试',true);return false;
+        }
         data.set('ajax','1');
         var button=form.querySelector('button[type="submit"]');
-        if (button) button.disabled=true;
-        fetch(form.action,{method:'POST',body:data,credentials:'same-origin',headers:{'Accept':'application/json'}})
-          .then(function(response){return response.json().then(function(result){
-             if (!response.ok || !result.ok) throw new Error(result.message || '保存失败');
-             var password=(data.get('password_mode')==='set' ? data.get('new_password') : '');
-             if (password && result.share_url) {
-                var url=new URL(result.share_url,window.location.href);
-                url.hash='key='+encodeURIComponent(password);
-                return that.copyShareText(url.href).then(function(){window.location.replace(result.url);});
+        if (button) {button.disabled=true;button.textContent='正在保存…';}
+        var saved=false;
+        fetch(form.getAttribute('action')||'entry.php',{method:'POST',body:data,credentials:'same-origin',headers:{'Accept':'application/json'}})
+          .then(function(response){return response.text().then(function(body){
+             var result;
+             try {result=JSON.parse(body);}catch(e){throw new Error('服务器响应无法解析（HTTP '+response.status+'），修改状态未确认，请先检查留言详情。');}
+             if (!response.ok || !result || result.ok!==true) throw new Error(result && result.message ? result.message : '保存失败（HTTP '+response.status+'）');
+             if (!/^entry\.php\?id=[a-f0-9]{24}&saved=1$/.test(result.url||'')) throw new Error('服务器已确认保存，但返回的详情地址不正确，请刷新当前留言详情。');
+             saved=true;
+             var next=result.url;
+             var go=function(){window.location.assign(next);};
+             var password=data.get('password_mode')==='set'?data.get('new_password'):'';
+             if (typeof password==='string' && password && /^entry\.php\?id=[a-f0-9]{24}$/.test(result.share_url||'')) {
+                // A validated relative link can be built without URL() for older WebKit.
+                var path=window.location.href.split('#')[0].split('?')[0];
+                var base=path.slice(0,path.lastIndexOf('/')+1);
+                var link=base+result.share_url+'#key='+encodeURIComponent(password);
+                try {return Promise.resolve(that.copyShareText(link)).then(go,go);}
+                catch(copyError) {go();return;}
              }
-             window.location.replace(result.url);
+             go();
           });})
-          .catch(function(e){that.notify(e.message || '保存失败，请重试',true);if(button)button.disabled=false;});
+          .catch(function(e){
+             if(saved) {that.notify('修改已保存，请返回详情页查看。',false);return;}
+             that.notify(e && e.message ? e.message : '网络异常，保存状态尚未确认，请先检查详情页，避免重复提交。',true);
+             if(button){button.disabled=false;button.textContent='保存修改';}
+          });
         return false;
+    },
+
+    /** Use a native date input plus explicit hour/minute selects. */
+    setupExpiryPicker: function(selectId, panelId) {
+        var selector=document.getElementById(selectId), panel=document.getElementById(panelId);
+        if (!selector||!panel)return;
+        var inputs=panel.querySelectorAll('input,select');
+        function sync(){
+            var shown=selector.value==='custom';
+            panel.hidden=!shown;
+            for(var i=0;i<inputs.length;i++){
+                inputs[i].disabled=!shown;
+                if(inputs[i].name==='expiry_date') inputs[i].required=shown;
+            }
+        }
+        selector.addEventListener('change',sync);
+        sync();
     },
 
     copyEntry: async function(id, button) {

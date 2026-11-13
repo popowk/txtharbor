@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.5 */
+/* TxtHarbor-build:1.5.6 */
 /** Independent administrator sessions; legacy manage cookies never grant access. */
 function th_admin_cookie_path() {
     $dir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/run.php'));

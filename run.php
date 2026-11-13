@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.5 */
+/* TxtHarbor-build:1.5.6 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -478,10 +478,9 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
     elseif ($expiry === '7d') $expiration=time()+7*86400;
     elseif ($expiry === '30d') $expiration=time()+30*86400;
     elseif ($expiry === 'custom') {
-        $raw_date=$_POST['expiry_custom']??'';
-        $date=is_string($raw_date)?DateTimeImmutable::createFromFormat('!Y-m-d\TH:i',$raw_date,new DateTimeZone('Asia/Shanghai')):false;
-        if (!$date || $date->getTimestamp()<=time()) write_finish(false,'请选择未来的过期时间（北京时间）','',422);
-        $expiration=$date->getTimestamp();
+        $selected=th_expiry_from_post($_POST);
+        if ($selected===null) write_finish(false,'请选择有效的未来日期、小时和分钟（北京时间）','',422);
+        $expiration=$selected;
     } elseif ($expiry !== 'never') write_finish(false,'有效期参数不正确','',422);
     $password = isset($_POST['access_password']) && is_string($_POST['access_password']) ? $_POST['access_password'] : '';
     if ($password !== '' && (!text_v2_valid_utf8($password) || text_v2_length($password)<4 || strlen($password)>128))

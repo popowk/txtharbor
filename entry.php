@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.5 */
+/* TxtHarbor-build:1.5.6 */
 /** Single stable-link view and authorized edit/update entry point. */
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
@@ -103,10 +103,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             elseif($expiry==='7d')$expiration=time()+7*86400;
             elseif($expiry==='30d')$expiration=time()+30*86400;
             elseif($expiry==='custom') {
-                $value=$_POST['expiry_custom']??'';
-                $dt=is_string($value)?DateTimeImmutable::createFromFormat('!Y-m-d\TH:i',$value,new DateTimeZone('Asia/Shanghai')):false;
-                if(!$dt || $dt->getTimestamp()<=time())$error='自定义过期时间必须晚于现在（北京时间）';
-                else $expiration=$dt->getTimestamp();
+                $selected=th_expiry_from_post($_POST);
+                if ($selected===null) $error='请选择有效的未来日期、小时和分钟（北京时间）';
+                else $expiration=$selected;
             } elseif($expiry==='keep')$expiration=$entry['expires_at'];
             elseif($expiry!=='never')$error='有效期选项不正确';
             $mode=$_POST['password_mode']??'keep';
@@ -167,8 +166,17 @@ $update_active=isset($_GET['saved'])&&!empty($_GET['saved']);
 <label>标题<input name="subject" class="modern-input" maxlength="<?php echo SUBJ_SIZE; ?>" value="<?php echo text_v2_html($entry['subject']); ?>"></label>
 <label>正文（保留 Markdown 原文）<textarea name="content" rows="15" class="modern-input" required><?php echo text_v2_html($entry['content']); ?></textarea></label>
 <label class="entry-check"><input type="checkbox" name="pinned" value="1" <?php echo $entry['pinned']?'checked':''; ?>> 置顶留言</label>
-<label>有效期<select name="expiry"><option value="keep" selected>保持当前设置</option><option value="never">永久有效</option><option value="1d">自保存起 1 天</option><option value="7d">自保存起 7 天</option><option value="30d">自保存起 30 天</option><option value="custom">自定义到期时间</option></select></label>
-<label>自定义到期时间（北京时间，选择上方“自定义”时生效）<input type="datetime-local" name="expiry_custom" class="modern-input"></label>
+<label>有效期<select name="expiry" id="entry-expiry-option"><option value="keep" selected>保持当前设置<?php if($entry['expires_at']>0) echo '（当前：'.(new DateTimeImmutable('@'.$entry['expires_at']))->setTimezone(new DateTimeZone('Asia/Shanghai'))->format('Y-m-d H:i').'）'; ?></option><option value="never">永久有效</option><option value="1d">自保存起 1 天</option><option value="7d">自保存起 7 天</option><option value="30d">自保存起 30 天</option><option value="custom">自定义到期时间</option></select></label>
+<?php $th_edit_time=(new DateTimeImmutable('@'.($entry['expires_at']>0?$entry['expires_at']:time()+86400)))->setTimezone(new DateTimeZone('Asia/Shanghai')); ?>
+<div class="expiry-picker" id="entry-expiry-custom" hidden>
+  <span class="expiry-picker-title">自定义到期时间 <small>北京时间 UTC+8</small></span>
+  <div class="expiry-picker-fields">
+    <label for="entry-expiry-date">日期<input class="modern-input" id="entry-expiry-date" type="date" name="expiry_date" value="<?php echo $th_edit_time->format('Y-m-d'); ?>" disabled></label>
+    <label for="entry-expiry-hour">小时（0–23）<select id="entry-expiry-hour" name="expiry_hour" disabled><?php for($i=0;$i<24;$i++): $v=sprintf('%02d',$i); ?><option value="<?php echo $v; ?>" <?php echo $th_edit_time->format('H')===$v?'selected':''; ?>><?php echo $v; ?> 时</option><?php endfor; ?></select></label>
+    <label for="entry-expiry-minute">分钟（0–59）<select id="entry-expiry-minute" name="expiry_minute" disabled><?php for($i=0;$i<60;$i++): $v=sprintf('%02d',$i); ?><option value="<?php echo $v; ?>" <?php echo $th_edit_time->format('i')===$v?'selected':''; ?>><?php echo $v; ?> 分</option><?php endfor; ?></select></label>
+  </div>
+  <small>到期后访客无法查看或通过原链接访问，留言不会自动删除。</small>
+</div>
 <label>访问密码<select name="password_mode"><option value="keep">保持原密码</option><option value="set">设置或更换密码</option><option value="remove">移除密码保护</option></select></label>
 <label>新密码<div class="password-tools"><input id="entry-new-password" name="new_password" type="password" autocomplete="new-password" minlength="4" class="modern-input" placeholder="至少 4 位，推荐更长密码"><button type="button" class="tool-button" onclick="main.generateAccessPassword('entry-new-password',this)">随机生成</button></div></label>
 <div class="editor-footer"><a href="entry.php?id=<?php echo $entry['id']; ?>">取消</a><button class="send2 primary-button" type="submit">保存修改</button></div></form>
@@ -208,4 +216,7 @@ $update_active=isset($_GET['saved'])&&!empty($_GET['saved']);
     }
   } catch(e) { /* malformed share fragment: allow manual password entry */ }
 })();
+  <?php if($is_edit): ?>
+  main.setupExpiryPicker('entry-expiry-option','entry-expiry-custom');
+  <?php endif; ?>
 </script></body></html>

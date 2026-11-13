@@ -26,6 +26,18 @@ $id=$entries[0]['id'];ok(preg_match('/^[a-f0-9]{24}$/D',$id)===1,'Opaque stable 
 ok(strpos($entries[0]['content'],'\\server\\docs')!==false,'Slash fidelity');
 ok($entries[1]['content']==="旧内容\n第二行",'Legacy GBK decode');
 ok(th_md_detect($entries[0]['content']),'Markdown recognition');
+$future=(new DateTimeImmutable('now',new DateTimeZone('Asia/Shanghai')))->modify('+3 day')->setTime(14,37);
+$local=$future->format('Y-m-d');
+ok(th_expiry_from_post(array('expiry_date'=>$local,'expiry_hour'=>'14','expiry_minute'=>'37'))===$future->getTimestamp(),
+    'Explicit Beijing date + hour + minute parsing');
+ok(th_expiry_from_post(array('expiry_custom'=>$local.'T14:37'))===$future->getTimestamp(),
+    'Legacy datetime-local custom date stays compatible');
+ok(th_expiry_from_post(array('expiry_date'=>'2026-02-30','expiry_hour'=>'14','expiry_minute'=>'37'))===null,
+    'Reject impossible calendar dates instead of PHP rollover');
+ok(th_expiry_from_post(array('expiry_date'=>$local,'expiry_hour'=>'24','expiry_minute'=>'00'))===null &&
+   th_expiry_from_post(array('expiry_date'=>$local,'expiry_hour'=>'23','expiry_minute'=>'60'))===null,
+   'Reject out-of-range hour/minute');
+
 $render=th_md_render($entries[0]['content']);
 ok(strpos($render,'<strong>Bold</strong>')!==false,'Safe Markdown bold rendering');
 ok(strpos($render,'<script>')===false && strpos($render,'&lt;script&gt;')!==false,'Raw HTML never executed');
@@ -59,6 +71,8 @@ ok(!th_entry_public_content($updated[0]),'Password blocks copied/rendered raw co
 ok(strpos(th_entry_body_html($updated[0]),'Edited **markdown**')===false,'Password blocks Markdown source in HTML');
 th_metadata_update(function($all)use($id){$all[$id]['expires_at']=time()-1;return $all;});
 ok(th_entry_expired(th_entry_find($id)) && !th_entry_visible(th_entry_find($id)),'Expired entry is not publicly visible');
+$unprotected=th_entry_find($id); $unprotected['password_hash']='';
+ok(!th_entry_public_content($unprotected),'Expiry also blocks unprotected entries; content is retained for admin');
 file_put_contents($base.'/data/file.php',$initial.$posts[0].$posts[1]);
 ok(th_entry_find($id)['id']===$id,'ID unchanged across metadata updates');
 rename($base.'/data/entry_meta.php',$base.'/data/meta.backup.php');
