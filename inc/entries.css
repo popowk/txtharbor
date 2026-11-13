@@ -1,4 +1,4 @@
-/* TxtHarbor-build:1.5.6 */
+/* TxtHarbor-build:1.5.7 */
 /* TxtHarbor v1.5: raw Markdown preservation, share/settings, password cards. */
 .app-page .entry-actions,.app-page .entry-buttons{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .app-page .entry-action{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border:1px solid var(--line-strong);border-radius:9px;color:var(--cyan-bright);background:var(--panel-2);font-size:12px;font-weight:600;text-decoration:none}
@@ -168,3 +168,21 @@
 :root[data-theme="light"] .app-page .entry-settings label.entry-check{
   background:#f7fafc!important;color:#263f57!important;border-color:#d8e4ee;
 }
+
+/* v1.5.7: Markdown images, scrollable tables and list-only height limit. */
+.app-page .markdown-rendered .md-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;border:1px solid var(--line-strong);border-radius:11px;margin:14px 0;}
+.app-page .markdown-rendered table{width:100%;min-width:max-content;border-spacing:0;border-collapse:collapse;background:var(--panel-2);font-size:13px;line-height:1.65;}
+.app-page .markdown-rendered th,.app-page .markdown-rendered td{padding:10px 13px;white-space:normal;max-width:360px;min-width:65px;vertical-align:top;border-bottom:1px solid var(--line-strong);border-right:1px solid var(--line-strong);overflow-wrap:anywhere;}
+.app-page .markdown-rendered th{font-weight:750;background:var(--panel);color:var(--ink);}
+.app-page .markdown-rendered tr:last-child td{border-bottom:0;}
+.app-page .markdown-rendered th:last-child,.app-page .markdown-rendered td:last-child{border-right:0;}
+.app-page .markdown-rendered .md-align-right{text-align:right;}
+.app-page .markdown-rendered .md-align-center{text-align:center;}
+.app-page .markdown-rendered .md-external-image{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;padding:12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--panel-2);color:var(--ink);}
+.app-page .markdown-rendered .md-external-image .md-image-description{font-weight:650;overflow-wrap:anywhere;}
+.app-page .markdown-rendered .md-external-image .md-load-image{background:var(--panel);color:var(--cyan-bright);border:1px solid var(--line-strong);border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:650;}
+.app-page .markdown-rendered .md-external-image img{display:block;max-width:100%;max-height:520px;object-fit:contain;border-radius:8px;}
+.app-page .message-card .th-entry-preview.is-collapsed{max-height:var(--th-preview-limit,400px)!important;overflow:hidden!important;position:relative;}
+.app-page .message-card .th-entry-preview.is-collapsed:after{content:"";pointer-events:none;position:absolute;bottom:0;left:0;right:0;height:62px;background:linear-gradient(transparent,var(--panel));}
+.app-page .th-expand-entry{display:inline-flex;align-items:center;background:var(--panel-2);color:var(--cyan-bright);border:1px solid var(--line-strong);border-radius:9px;padding:7px 14px;margin:12px 0;cursor:pointer;}
+.app-page .th-expand-entry[hidden]{display:none!important;}

@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.6 */
+/* TxtHarbor-build:1.5.7 */
 /** Single stable-link view and authorized edit/update entry point. */
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
@@ -164,7 +164,7 @@ $update_active=isset($_GET['saved'])&&!empty($_GET['saved']);
 <form method="post" class="body rounded entry-settings" action="entry.php?id=<?php echo $entry['id']; ?>&amp;edit=1" accept-charset="UTF-8" onsubmit="return main.saveEntrySettings(event,this);">
 <input type="hidden" name="action" value="save"><input type="hidden" name="csrf" value="<?php echo text_v2_html($csrf); ?>">
 <label>标题<input name="subject" class="modern-input" maxlength="<?php echo SUBJ_SIZE; ?>" value="<?php echo text_v2_html($entry['subject']); ?>"></label>
-<label>正文（保留 Markdown 原文）<textarea name="content" rows="15" class="modern-input" required><?php echo text_v2_html($entry['content']); ?></textarea></label>
+<label>正文（保留 Markdown 原文，最多 <?php echo (int) WORD_SIZE; ?> 字符）<textarea name="content" rows="15" class="modern-input" required><?php echo text_v2_html($entry['content']); ?></textarea></label>
 <label class="entry-check"><input type="checkbox" name="pinned" value="1" <?php echo $entry['pinned']?'checked':''; ?>> 置顶留言</label>
 <label>有效期<select name="expiry" id="entry-expiry-option"><option value="keep" selected>保持当前设置<?php if($entry['expires_at']>0) echo '（当前：'.(new DateTimeImmutable('@'.$entry['expires_at']))->setTimezone(new DateTimeZone('Asia/Shanghai'))->format('Y-m-d H:i').'）'; ?></option><option value="never">永久有效</option><option value="1d">自保存起 1 天</option><option value="7d">自保存起 7 天</option><option value="30d">自保存起 30 天</option><option value="custom">自定义到期时间</option></select></label>
 <?php $th_edit_time=(new DateTimeImmutable('@'.($entry['expires_at']>0?$entry['expires_at']:time()+86400)))->setTimezone(new DateTimeZone('Asia/Shanghai')); ?>

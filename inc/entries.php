@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.6 */
+/* TxtHarbor-build:1.5.7 */
 /** TxtHarbor v1.5 entry extension. Old byte-indexed record data is read-only. */
 require_once __DIR__.'/content.php';
 const TH_META_PREFIX = "<?php exit; ?>\n";

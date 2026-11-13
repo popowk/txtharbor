@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.6 */
+/* TxtHarbor-build:1.5.7 */
 /* TxtHarbor GitHub release updater. Keep the original software copyright notices. */
 
 function th_update_defaults() {

@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.6 */
+/* TxtHarbor-build:1.5.7 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -101,22 +101,12 @@ function md162100($str) {
 
 //获取ip
 function user_ip() {
-    if(getenv('HTTP_CLIENT_IP')){
-      $ip=getenv('HTTP_CLIENT_IP'); 
-    }elseif(getenv('HTTP_X_FORWARDED_FOR')){
-      $ip=getenv('HTTP_X_FORWARDED_FOR');
-    }elseif(getenv('HTTP_X_FORWARDED')){ 
-      $ip=getenv('HTTP_X_FORWARDED');
-    }elseif(getenv('HTTP_FORWARDED_FOR')){
-      $ip=getenv('HTTP_FORWARDED_FOR'); 
-    }elseif(getenv('HTTP_FORWARDED')){
-      $ip=getenv('HTTP_FORWARDED');
-    }elseif($_SERVER['REMOTE_ADDR']=str_replace('::1', '', $_SERVER['REMOTE_ADDR'])){ 
-      $ip=$_SERVER['REMOTE_ADDR'];
-    }else{ 
-      $ip = @file_get_contents('http://www.162100.com/readonly/weather/ip.php');
-    }
-    return preg_match('/^\d+\.\d+\.\d+\.\d+$/', $ip) ? $ip : '127.0.0.1';
+    // Never trust X-Forwarded-For or Client-IP from an arbitrary request.
+    // Behind a CDN / reverse proxy use the actual REMOTE_ADDR for quotas by
+    // default, unless a trusted-proxy configuration is explicitly implemented.
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (!is_string($ip) || !filter_var($ip,FILTER_VALIDATE_IP)) return '127.0.0.1';
+    return $ip;
 }
 
 //删除目录
@@ -418,7 +408,7 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
     $ip = user_ip();
     $track_daily = !ADMIN_POWER && defined('DAY_SIZE') && is_numeric(DAY_SIZE) && DAY_SIZE > 0;
     $today = $track_daily ? gmdate('Ymd', time() + floatval($web['time_pos']) * 3600) : '';
-    $fd = $track_daily ? '__temp__/'.$today.'/'.$ip.'.txt' : '';
+    $fd = $track_daily ? '__temp__/'.$today.'/'.hash('sha256', $ip).'.txt' : '';
     if ($track_daily && is_file($fd)) {
         $n = abs((int)@file_get_contents($fd));
         if ($n >= DAY_SIZE) {
@@ -562,7 +552,10 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
             @file_put_contents($fd, (string)$n, LOCK_EX);
             if ($date_all = @glob('__temp__/*', GLOB_ONLYDIR)) {
                 foreach ($date_all as $date) {
-                    if ($date !== '__temp__/'.$today) deldir($date);
+                    // Only daily YYYYMMDD quota folders may be deleted.
+                    // Never delete password_attempts or other authentication state.
+                    $folder=basename($date);
+                    if ($date !== '__temp__/'.$today && preg_match('/^\d{8}$/D', $folder)) deldir($date);
                 }
             }
         }
@@ -584,7 +577,10 @@ if (isset($_POST['act']) && $_POST['act'] === 'write') :
 
 
 //审核通过（单条）
-elseif ($_GET['act'] == 'chk') :
+elseif (($_GET['act'] ?? '') === 'chk') :
+    if (!isset($_GET['delete_token']) || !is_string($_GET['delete_token']) || !hash_equals(text_v2_delete_token(), $_GET['delete_token'])) {
+        http_response_code(403); die('安全令牌无效，请刷新后重试');
+    }
 	if (!ADMIN_POWER) {
 		die('<script> main.addSubmitSafe_(\'i\',\'管理权限不足！\'); </script>
 		管理权限不足！</body></html>');
@@ -622,7 +618,10 @@ elseif ($_GET['act'] == 'chk') :
 	
 
 //审核通过
-elseif ($_POST['act'] == 'chk') :
+elseif (($_POST['act'] ?? '') === 'chk') :
+    if (!isset($_POST['delete_token']) || !is_string($_POST['delete_token']) || !hash_equals(text_v2_delete_token(), $_POST['delete_token'])) {
+        http_response_code(403); die('安全令牌无效，请刷新后重试');
+    }
 	if (!ADMIN_POWER) {
 		die('<script> main.addSubmitSafe_(\'i\',\'管理权限不足！\'); </script>
 		管理权限不足！</body></html>');

@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.6 */
+/* TxtHarbor-build:1.5.7 */
 /** Independent administrator sessions; legacy manage cookies never grant access. */
 function th_admin_cookie_path() {
     $dir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/run.php'));
@@ -121,10 +121,23 @@ function th_admin_handle_request($web) {
         $from=($_POST['login_from']??'')==='admin'?'admin':'index';
         $redirect=th_admin_target($from);
         $password=$_POST['password']??null; $error='';
-        if (!is_string($password)||$password==='') $error='empty';
-        elseif (!isset($web['password']) || !is_string($web['password']) ||
-            !hash_equals($web['password'],substr(sha1(md5($password)),4,32))) $error='invalid';
-        else {
+        // Shared, file-backed IP limit; old code allowed unlimited online guesses.
+        // This runs only via run.php where th_access_rate() is loaded.
+        try {
+            if (function_exists('th_access_rate') && !th_access_rate('admin-login')) $error='locked';
+        } catch (Throwable $ex) {
+            $error='storage';error_log('TxtHarbor admin login rate limit: '.$ex->getMessage());
+        }
+        if ($error==='') {
+            if (!is_string($password)||$password==='') $error='empty';
+            elseif (!isset($web['password']) || !is_string($web['password']) ||
+                !hash_equals($web['password'],substr(sha1(md5($password)),4,32))) $error='invalid';
+            if ($error!=='' && function_exists('th_access_rate')) {
+                try { th_access_rate('admin-login',false); }
+                catch(Throwable $ex) { $error='storage';error_log('TxtHarbor admin login rate storage: '.$ex->getMessage()); }
+            }
+        }
+        if ($error==='') {
             try {
                 $token=bin2hex(random_bytes(32));
                 $persistent=!empty($_POST['save_cookie']);
@@ -133,10 +146,10 @@ function th_admin_handle_request($web) {
                     $all[hash('sha256',$token)]=array('exp'=>$expiry,'pw'=>hash('sha256',(string)$web['password']));
                     return $all;
                 });
+                if (function_exists('th_access_rate')) th_access_rate('admin-login',true);
                 th_admin_set_cookie($token,$persistent);
                 foreach (array_unique(array('/',th_admin_cookie_path())) as $path)
                     th_admin_set_cookie('',false,true,'manage',$path);
-                // On the target page show a precise diagnostic if a proxy/browser dropped the cookie.
                 $redirect.=(strpos($redirect,'?')===false?'?':'&').'login_check=1';
             } catch (Throwable $ex) {
                 $error='storage'; error_log('TxtHarbor administrator login: '.$ex->getMessage());

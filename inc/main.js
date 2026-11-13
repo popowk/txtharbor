@@ -1,4 +1,4 @@
-/* TxtHarbor-build:1.5.6 */
+/* TxtHarbor-build:1.5.7 */
 /*
 * 程序名称：162100留言本（吧）
 * 程序编码：UTF-8
@@ -27,7 +27,13 @@ main = {
 	addSubmitSafe_: function(img, text, fun, T) {
 		var s = htmlbody.document.getElementById('submit_safe_in22');
 		if (s != null) {
-			s.innerHTML = '<img src=img/' + img + '.gif /> ' + text + '';
+	        // Legacy server messages can contain user-controlled text. Never parse it as HTML.
+        s.textContent = '';
+        var icon = htmlbody.document.createElement('img');
+        icon.src = 'img/' + (img === 'ok' ? 'ok' : 'i') + '.gif';
+        icon.alt = '';
+        s.appendChild(icon);
+        s.appendChild(htmlbody.document.createTextNode(' ' + String(text)));
 		} else {
 			htmlbody.main.addSubmitSafe();
 			this.addSubmitSafe_(img, text);
@@ -42,7 +48,14 @@ main = {
 			clearTimeout(listenTimeout);
 			listenTimeout = null;
 		}
-		listenTimeout = setTimeout(fun, T);
+        var callback = typeof fun === 'function' ? fun : function() {
+            // Preserve legacy known navigation/close actions, but never eval strings.
+            if (fun === 'htmlbody.location.reload();') htmlbody.location.reload();
+            else if (fun === 'main.delSubmitSafe()' || fun === undefined || fun === null) main.delSubmitSafe();
+            else if (fun === 'htmlbody.location.reload()') htmlbody.location.reload();
+            else main.delSubmitSafe();
+        };
+        listenTimeout = setTimeout(callback, T);
 	},
 
 	addSubmitSafe: function() {
@@ -460,3 +473,39 @@ window.beforeunload = window.onunload = function() {
 
 
 
+
+/* v1.5.7: opt-in remote image preview and accessible long-entry folding. */
+(function() {
+    function setupPreviews() {
+        document.querySelectorAll('.th-entry-preview[data-preview-limit]').forEach(function(content) {
+            var limit=Number(content.getAttribute('data-preview-limit'));
+            if (!Number.isFinite(limit) || limit < 120) return;
+            var toggle=content.nextElementSibling;
+            if (!toggle || !toggle.classList.contains('th-expand-entry')) return;
+            if (content.scrollHeight <= limit+8) return;
+            content.style.setProperty('--th-preview-limit',limit+'px');
+            content.classList.add('is-collapsed');
+            toggle.hidden=false;
+            toggle.addEventListener('click',function() {
+                var collapsed=content.classList.toggle('is-collapsed');
+                toggle.textContent=collapsed?'展开全文':'收起内容';
+                toggle.setAttribute('aria-expanded',String(!collapsed));
+            });
+        });
+    }
+    if (typeof document.addEventListener !== 'function') return;
+    document.addEventListener('click',function(e) {
+        var button=e.target.closest && e.target.closest('.md-load-image');
+        if (!button) return;
+        var wrapper=button.closest('.md-external-image');
+        var url=wrapper && wrapper.getAttribute('data-image-url');
+        if (!url || !/^https:\/\/[^\s]+$/i.test(url)) return;
+        var image=document.createElement('img');
+        image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';
+        image.alt=(wrapper.querySelector('.md-image-description')||{}).textContent || '外部图片';
+        image.addEventListener('error',function(){image.remove();button.hidden=false;});
+        button.hidden=true;wrapper.appendChild(image);image.src=url;
+    });
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupPreviews);
+    else setupPreviews();
+})();

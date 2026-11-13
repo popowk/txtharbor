@@ -1,5 +1,5 @@
 <?php
-/* TxtHarbor-build:1.5.6 */
+/* TxtHarbor-build:1.5.7 */
 
 /*
 * 程序名称：162100留言本（吧）
@@ -109,7 +109,7 @@ function get_list_content_guest() {
 	return '<span class="approved">内容审核中</span>';
 }
 function get_list_content_admin($id, $content) {
-	return '<span class="approved" id="chk_'.$id.'">内容审核中 <a href="run.php?act=chk&id='.$id.'" target="lastFrame" onclick="main.addSubmitSafe();">核准</a></span>'.$content;
+	return '<span class="approved" id="chk_'.$id.'">内容审核中 <a href="run.php?act=chk&amp;id='.$id.'&amp;delete_token='.rawurlencode(text_v2_delete_token()).'" target="lastFrame" onclick="main.addSubmitSafe();">核准</a></span>'.$content;
 }
 
 function get_h2_and_br($text) {
@@ -166,7 +166,8 @@ function get_list($loc_len, $pos, $fp2) {
     <div class="title"><label for="m_'.$loc.'|'.$len.'|'.$pos.'" class="m"><input name="id[]" id="m_'.$loc.'|'.$len.'|'.$pos.'" type="checkbox" value="'.$loc.'|'.$len.'|'.$pos.'" /></label></div>
     <div class="texts">
       <div class="title_bottom"><div class="message-meta"><span class="message-dot"></span>'.$area.'<span class="message-date">'.$date.'</span></div>'.($entry['pinned']?'<span class="entry-pin">📌 置顶</span>':'').'<span class="entry-buttons">'.$copy_button.$delete_button.'</span></div>
-      <div class="text">'.$content.'</div>
+      <div class="text th-entry-preview" data-preview-limit="'.(defined('MAXHEIGHT_SIZE') ? max(0,min(2000,(int)MAXHEIGHT_SIZE)) : 0).'">'.$content.'</div>
+      <button type="button" class="th-expand-entry" aria-expanded="false" hidden>展开全文</button>
       '.$reply_html.'
     </div>
     <span id="reply_'.$loc.'|'.$len.'|'.$pos.'"></span>
